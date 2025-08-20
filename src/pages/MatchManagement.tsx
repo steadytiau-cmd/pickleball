@@ -56,6 +56,8 @@ export default function MatchManagement() {
     match_status: 'scheduled'
   })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [showQuickScore, setShowQuickScore] = useState(false)
+  const [quickScoreMatches, setQuickScoreMatches] = useState<Match[]>([])
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -296,6 +298,59 @@ export default function MatchManagement() {
     setShowAddForm(false)
   }
 
+  const handleQuickScoreUpdate = async (matchId: number, team1Score: number, team2Score: number, status: string) => {
+    try {
+      const match = matches.find(m => m.id === matchId)
+      if (!match) return
+
+      const { error } = await supabase
+        .from('matches')
+        .update({
+          team1_score: team1Score,
+          team2_score: team2Score,
+          match_status: status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', matchId)
+
+      if (error) throw error
+
+      // Update team records if match is completed
+      if (status === 'completed') {
+        const winner_id = team1Score > team2Score ? match.team1_id : match.team2_id
+        const loser_id = team1Score > team2Score ? match.team2_id : match.team1_id
+
+        // Update winner
+        await supabase.rpc('increment_team_wins', { team_id: winner_id })
+        
+        // Update loser
+        await supabase.rpc('increment_team_losses', { team_id: loser_id })
+
+        // Update points
+        await supabase
+          .from('teams')
+          .update({ 
+            points_for: (match.team1?.points_for || 0) + team1Score,
+            points_against: (match.team1?.points_against || 0) + team2Score
+          })
+          .eq('id', match.team1_id)
+
+        await supabase
+          .from('teams')
+          .update({ 
+            points_for: (match.team2?.points_for || 0) + team2Score,
+            points_against: (match.team2?.points_against || 0) + team1Score
+          })
+          .eq('id', match.team2_id)
+      }
+
+      fetchData()
+    } catch (error) {
+      console.error('Error updating quick score:', error)
+      alert('更新失败，请重试')
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed': return 'bg-green-100 text-green-800'
@@ -363,13 +418,26 @@ export default function MatchManagement() {
                 </div>
               </div>
             </div>
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              <span>安排比赛</span>
-            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  const activeMatches = matches.filter(m => m.match_status === 'scheduled' || m.match_status === 'in_progress')
+                  setQuickScoreMatches(activeMatches)
+                  setShowQuickScore(true)
+                }}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                <Play className="h-4 w-4" />
+                <span>快速计分</span>
+              </button>
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                <span>安排比赛</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -730,6 +798,157 @@ export default function MatchManagement() {
           </div>
         </div>
       )}
+
+      {/* Quick Score Modal */}
+      {showQuickScore && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-900">快速计分</h2>
+              <button
+                onClick={() => setShowQuickScore(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {quickScoreMatches.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">没有进行中或已安排的比赛</p>
+              ) : (
+                quickScoreMatches.map(match => (
+                  <QuickScoreCard
+                    key={match.id}
+                    match={match}
+                    onScoreUpdate={handleQuickScoreUpdate}
+                  />
+                ))
+              )}
+            </div>
+
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setShowQuickScore(false)}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Quick Score Card Component
+interface QuickScoreCardProps {
+  match: Match
+  onScoreUpdate: (matchId: number, team1Score: number, team2Score: number, status: string) => void
+}
+
+function QuickScoreCard({ match, onScoreUpdate }: QuickScoreCardProps) {
+  const [team1Score, setTeam1Score] = useState(match.team1_score || 0)
+  const [team2Score, setTeam2Score] = useState(match.team2_score || 0)
+  const [status, setStatus] = useState(match.match_status)
+
+  const handleUpdate = () => {
+    onScoreUpdate(match.id, team1Score, team2Score, status)
+  }
+
+  const incrementScore = (team: 'team1' | 'team2') => {
+    if (team === 'team1') {
+      setTeam1Score(prev => prev + 1)
+    } else {
+      setTeam2Score(prev => prev + 1)
+    }
+  }
+
+  const decrementScore = (team: 'team1' | 'team2') => {
+    if (team === 'team1') {
+      setTeam1Score(prev => Math.max(0, prev - 1))
+    } else {
+      setTeam2Score(prev => Math.max(0, prev - 1))
+    }
+  }
+
+  return (
+    <div className="border rounded-lg p-4 bg-gray-50">
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-sm text-gray-600">
+          {match.tournament?.name} - {match.match_round} | 场地 {match.court_number}
+        </div>
+        <div className={`px-2 py-1 rounded text-xs font-medium ${
+          status === 'completed' ? 'bg-green-100 text-green-800' :
+          status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+          'bg-blue-100 text-blue-800'
+        }`}>
+          {status === 'completed' ? '已完成' : status === 'in_progress' ? '进行中' : '已安排'}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+        {/* Team 1 */}
+        <div className="text-center">
+          <h3 className="font-semibold text-gray-900 mb-2">{match.team1?.name}</h3>
+          <div className="flex items-center justify-center space-x-2">
+            <button
+              onClick={() => decrementScore('team1')}
+              className="w-8 h-8 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+            >
+              -
+            </button>
+            <span className="text-2xl font-bold w-12 text-center">{team1Score}</span>
+            <button
+              onClick={() => incrementScore('team1')}
+              className="w-8 h-8 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
+        {/* VS and Controls */}
+        <div className="text-center space-y-3">
+          <div className="text-lg font-bold text-gray-500">VS</div>
+          <select
+             value={status}
+             onChange={(e) => setStatus(e.target.value as 'scheduled' | 'in_progress' | 'completed' | 'cancelled')}
+             className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+           >
+            <option value="scheduled">已安排</option>
+            <option value="in_progress">进行中</option>
+            <option value="completed">已完成</option>
+          </select>
+          <button
+            onClick={handleUpdate}
+            className="w-full px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+          >
+            更新
+          </button>
+        </div>
+
+        {/* Team 2 */}
+        <div className="text-center">
+          <h3 className="font-semibold text-gray-900 mb-2">{match.team2?.name}</h3>
+          <div className="flex items-center justify-center space-x-2">
+            <button
+              onClick={() => decrementScore('team2')}
+              className="w-8 h-8 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+            >
+              -
+            </button>
+            <span className="text-2xl font-bold w-12 text-center">{team2Score}</span>
+            <button
+              onClick={() => incrementScore('team2')}
+              className="w-8 h-8 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
+            >
+              +
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

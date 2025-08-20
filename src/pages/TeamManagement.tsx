@@ -38,6 +38,9 @@ export default function TeamManagement() {
     group_id: 1
   })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [showBulkEdit, setShowBulkEdit] = useState(false)
+  const [bulkEditData, setBulkEditData] = useState<{[key: number]: {player1_name: string, player2_name: string}}>({})
+  const [selectedTeams, setSelectedTeams] = useState<Set<number>>(new Set())
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -193,6 +196,54 @@ export default function TeamManagement() {
     setShowAddForm(false)
   }
 
+  const handleBulkEditSubmit = async () => {
+    try {
+      const updates = Object.entries(bulkEditData).map(([teamId, data]) => 
+        supabase
+          .from('teams')
+          .update({
+            player1_name: data.player1_name,
+            player2_name: data.player2_name,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', parseInt(teamId))
+      )
+
+      await Promise.all(updates)
+      
+      setShowBulkEdit(false)
+      setBulkEditData({})
+      setSelectedTeams(new Set())
+      fetchData()
+      alert('批量更新成功！')
+    } catch (error) {
+      console.error('Error bulk updating teams:', error)
+      alert('批量更新失败，请重试')
+    }
+  }
+
+  const initializeBulkEdit = () => {
+    const initialData: {[key: number]: {player1_name: string, player2_name: string}} = {}
+    teams.forEach(team => {
+      initialData[team.id] = {
+        player1_name: team.player1_name,
+        player2_name: team.player2_name
+      }
+    })
+    setBulkEditData(initialData)
+    setShowBulkEdit(true)
+  }
+
+  const updateBulkEditData = (teamId: number, field: 'player1_name' | 'player2_name', value: string) => {
+    setBulkEditData(prev => ({
+      ...prev,
+      [teamId]: {
+        ...prev[teamId],
+        [field]: value
+      }
+    }))
+  }
+
   const getTeamTypeColor = (teamType: string) => {
     switch (teamType) {
       case 'mens': return 'bg-blue-100 text-blue-800'
@@ -254,13 +305,22 @@ export default function TeamManagement() {
                 </div>
               </div>
             </div>
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              <span>添加队伍</span>
-            </button>
+            <div className="flex space-x-3">
+              <button
+                 onClick={initializeBulkEdit}
+                 className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+               >
+                 <Edit className="h-4 w-4" />
+                 <span>批量编辑选手</span>
+               </button>
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                <span>添加队伍</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -504,6 +564,85 @@ export default function TeamManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 批量编辑模态框 */}
+      {showBulkEdit && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-900">批量编辑选手姓名</h2>
+              <button
+                onClick={() => setShowBulkEdit(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {groups.map(group => {
+                const groupTeams = teams.filter(team => team.group_id === group.id)
+                if (groupTeams.length === 0) return null
+                
+                return (
+                  <div key={group.id} className="border rounded-lg p-4">
+                    <h3 className="text-lg font-semibold mb-3 text-gray-800">{group.name}</h3>
+                    <div className="grid gap-4">
+                      {groupTeams.map(team => (
+                        <div key={team.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center p-3 bg-gray-50 rounded">
+                          <div className="font-medium">
+                            <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getTeamTypeColor(team.team_type)}`}>
+                              {team.team_type === 'mens' ? '男双' : team.team_type === 'womens' ? '女双' : '混双'}
+                            </span>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">选手1</label>
+                            <input
+                              type="text"
+                              value={bulkEditData[team.id]?.player1_name || ''}
+                              onChange={(e) => updateBulkEditData(team.id, 'player1_name', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="输入选手1姓名"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">选手2</label>
+                            <input
+                              type="text"
+                              value={bulkEditData[team.id]?.player2_name || ''}
+                              onChange={(e) => updateBulkEditData(team.id, 'player2_name', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="输入选手2姓名"
+                            />
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            当前: {team.player1_name || '未设置'} & {team.player2_name || '未设置'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => setShowBulkEdit(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleBulkEditSubmit}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                保存所有更改
+              </button>
+            </div>
           </div>
         </div>
       )}
