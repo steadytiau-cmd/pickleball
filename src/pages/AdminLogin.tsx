@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { Lock, User, Trophy, Eye, EyeOff } from 'lucide-react'
+import bcrypt from 'bcryptjs'
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('')
@@ -30,9 +31,9 @@ export default function AdminLogin() {
         return
       }
 
-      // In a real app, you would hash and compare passwords
-      // For demo purposes, we're doing a simple comparison
-      if (data.password_hash !== password) {
+      // Verify password using bcrypt
+      const isPasswordValid = await bcrypt.compare(password, data.password_hash)
+      if (!isPasswordValid) {
         setError('用户名或密码错误')
         return
       }
