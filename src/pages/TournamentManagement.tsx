@@ -19,7 +19,7 @@ import {
 
 interface TournamentFormData {
   name: string
-  tournament_type: 'group_stage' | 'single_elimination'
+  tournament_type: 'group_stage' | 'elimination'
   description: string
   start_date: string
   end_date: string
@@ -198,7 +198,7 @@ export default function TournamentManagement() {
     setEditingTournament(tournament)
     setFormData({
       name: tournament.name,
-      tournament_type: tournament.tournament_type as 'group_stage' | 'single_elimination',
+      tournament_type: tournament.tournament_type as 'group_stage' | 'elimination',
       description: tournament.description || '',
       start_date: tournament.start_date ? new Date(tournament.start_date).toISOString().slice(0, 10) : '',
       end_date: tournament.end_date ? new Date(tournament.end_date).toISOString().slice(0, 10) : '',
@@ -384,7 +384,7 @@ export default function TournamentManagement() {
   const getTournamentTypeLabel = (type: string) => {
     switch (type) {
       case 'group_stage': return '小组赛'
-      case 'single_elimination': return '单淘汰赛'
+      case 'elimination': return '淘汰赛'
       default: return type
     }
   }
@@ -392,7 +392,7 @@ export default function TournamentManagement() {
   const getTournamentTypeColor = (type: string) => {
     switch (type) {
       case 'group_stage': return 'bg-blue-100 text-blue-800'
-      case 'single_elimination': return 'bg-purple-100 text-purple-800'
+      case 'elimination': return 'bg-purple-100 text-purple-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
@@ -584,7 +584,7 @@ export default function TournamentManagement() {
                             生成小组赛
                           </button>
                         )}
-                        {tournament.tournament_type === 'single_elimination' && (
+                        {tournament.tournament_type === 'elimination' && (
                           <button
                             onClick={() => generateEliminationMatches(tournament)}
                             className="w-full flex items-center justify-center px-3 py-2 text-sm font-medium bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
@@ -652,11 +652,11 @@ export default function TournamentManagement() {
                 </label>
                 <select
                   value={formData.tournament_type}
-                  onChange={(e) => setFormData({ ...formData, tournament_type: e.target.value as 'group_stage' | 'single_elimination' })}
+                  onChange={(e) => setFormData({ ...formData, tournament_type: e.target.value as 'group_stage' | 'elimination' })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                 >
                   <option value="group_stage">小组赛</option>
-                  <option value="single_elimination">单淘汰赛</option>
+                  <option value="elimination">淘汰赛</option>
                 </select>
               </div>
 
