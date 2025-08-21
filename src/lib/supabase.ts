@@ -38,7 +38,7 @@ export interface Team {
 export interface Tournament {
   id: number
   name: string
-  tournament_type: 'group_stage' | 'single_elimination'
+  tournament_type: 'group_stage' | 'elimination'
   team_type?: 'mens' | 'womens' | 'mixed'
   is_active: boolean
   start_date?: string
