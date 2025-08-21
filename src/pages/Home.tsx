@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase, Group, Team, Match, Tournament } from '@/lib/supabase'
+import { supabase, Group, Team, Match, Tournament, TeamCumulativeScore } from '@/lib/supabase'
 import { Users, Trophy, Calendar, Clock, Target, Calculator } from 'lucide-react'
 import TournamentBracket from '@/components/TournamentBracket'
 import PickleballScoreCalculator from '@/components/PickleballScoreCalculator'
@@ -7,7 +7,8 @@ import PickleballScoreCalculator from '@/components/PickleballScoreCalculator'
 export default function Home() {
   const [activeTab, setActiveTab] = useState('scoreboard')
   const [groups, setGroups] = useState<Group[]>([])
-  const [teams, setTeams] = useState<Team[]>([])
+  const [teams, setTeams] = useState<Team[]>([])  
+  const [cumulativeScores, setCumulativeScores] = useState<TeamCumulativeScore[]>([])
   const [matches, setMatches] = useState<Match[]>([])
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null)
@@ -28,6 +29,7 @@ export default function Home() {
       .channel('matches')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
         fetchMatches()
+        fetchCumulativeScores() // Update cumulative scores when matches change
       })
       .subscribe()
 
@@ -38,7 +40,7 @@ export default function Home() {
   }, [])
 
   const fetchData = async () => {
-    await Promise.all([fetchGroups(), fetchTeams(), fetchMatches(), fetchTournaments()])
+    await Promise.all([fetchGroups(), fetchTeams(), fetchMatches(), fetchTournaments(), fetchCumulativeScores()])
     setLoading(false)
   }
 
@@ -110,6 +112,19 @@ export default function Home() {
     }
   }
 
+  const fetchCumulativeScores = async () => {
+    const { data, error } = await supabase
+      .from('team_cumulative_scores')
+      .select('*')
+      .order('total_score', { ascending: false })
+    
+    if (error) {
+      console.error('Error fetching cumulative scores:', error)
+    } else {
+      setCumulativeScores(data || [])
+    }
+  }
+
   const getTeamsByGroup = (groupId: number) => {
     return teams.filter(team => team.group_id === groupId)
   }
@@ -172,51 +187,68 @@ export default function Home() {
     }
   }
 
-  const renderGroupStageScoreboard = () => (
+  const renderCumulativeScoreboard = () => (
     <>
-      {/* Groups Grid */}
+      {/* Cumulative Scores by Group */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
         {groups.map((group) => {
-          const groupTeams = getTeamsByGroup(group.id)
+          const groupScores = cumulativeScores.filter(score => score.group_id === group.id)
           return (
             <div key={group.id} className="bg-white rounded-lg shadow-md overflow-hidden">
               <div className="bg-gradient-to-r from-green-500 to-blue-500 px-6 py-4">
                 <h2 className="text-xl font-bold text-white flex items-center">
                   <Users className="h-5 w-5 mr-2" />
-                  {group.name}
+                  {group.name} - 累计总分
                 </h2>
               </div>
               <div className="p-6">
-                {groupTeams.length === 0 ? (
+                {groupScores.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">暂无队伍</p>
                 ) : (
                   <div className="space-y-3">
                     {['mens', 'womens', 'mixed'].map((teamType) => {
-                      const typeTeams = groupTeams.filter(team => team.team_type === teamType)
+                      const typeScores = groupScores.filter(score => score.team_type === teamType)
+                        .sort((a, b) => b.total_score - a.total_score)
                       return (
                         <div key={teamType}>
                           <h3 className={`text-sm font-semibold px-2 py-1 rounded-full inline-block mb-2 ${getTeamTypeColor(teamType)}`}>
                             {getTeamTypeLabel(teamType)}
                           </h3>
-                          {typeTeams.length === 0 ? (
+                          {typeScores.length === 0 ? (
                             <p className="text-gray-400 text-sm ml-2">暂无队伍</p>
                           ) : (
                             <div className="space-y-2">
-                              {typeTeams.map((team, index) => (
-                                <div key={team.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                  <div className="flex items-center space-x-3">
-                                    <span className="text-lg font-bold text-gray-600">#{index + 1}</span>
-                                    <div>
-                                      <p className="font-semibold text-gray-900">{team.name}</p>
-                                      <p className="text-sm text-gray-600">{team.player1_name} / {team.player2_name}</p>
+                              {typeScores.map((score, index) => {
+                                const isChampion = index === 0 && score.total_score > 0
+                                return (
+                                  <div key={score.team_id} className={`flex items-center justify-between p-3 rounded-lg ${
+                                    isChampion ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-gray-50'
+                                  }`}>
+                                    <div className="flex items-center space-x-3">
+                                      <span className={`text-lg font-bold ${
+                                        isChampion ? 'text-yellow-600' : 'text-gray-600'
+                                      }`}>#{index + 1}</span>
+                                      {isChampion && (
+                                        <Trophy className="h-5 w-5 text-yellow-500" />
+                                      )}
+                                      <div>
+                                        <p className={`font-semibold ${
+                                          isChampion ? 'text-yellow-900' : 'text-gray-900'
+                                        }`}>{score.team_name}</p>
+                                        <p className="text-sm text-gray-600">
+                                          {score.matches_played}场比赛 · {score.wins}胜{score.losses}负
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className={`text-xl font-bold ${
+                                        isChampion ? 'text-yellow-600' : 'text-green-600'
+                                      }`}>{score.total_score}分</p>
+                                      <p className="text-sm text-gray-500">总分</p>
                                     </div>
                                   </div>
-                                  <div className="text-right">
-                                    <p className="text-lg font-bold text-green-600">{team.wins}胜</p>
-                                    <p className="text-sm text-gray-500">{team.losses}负</p>
-                                  </div>
-                                </div>
-                              ))}
+                                )
+                              })}
                             </div>
                           )}
                         </div>
@@ -278,84 +310,100 @@ export default function Home() {
   )
 
   const renderEliminationScoreboard = () => {
-    const tournamentMatches = matches.filter(match => match.tournament_id === selectedTournament?.id)
-    const rounds = ['qualification', 'round_16', 'quarter_final', 'semi_final', 'final']
+    // Get teams participating in this tournament and their cumulative scores
+    const tournamentTeams = cumulativeScores
+      .filter(score => {
+        // Filter teams that have matches in this tournament
+        return matches.some(match => 
+          match.tournament_id === selectedTournament?.id && 
+          (match.team1_id === score.team_id || match.team2_id === score.team_id)
+        )
+      })
+      .sort((a, b) => b.total_score - a.total_score)
     
     return (
       <div className="bg-white rounded-lg shadow-md">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900 flex items-center">
             <Target className="h-5 w-5 mr-2" />
-            淘汰赛对阵图 - {selectedTournament?.name}
+            淘汰赛累计总分 - {selectedTournament?.name}
           </h2>
         </div>
         <div className="p-6">
-          {tournamentMatches.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">暂无比赛安排</p>
+          {tournamentTeams.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">暂无参赛队伍</p>
           ) : (
-            <div className="space-y-8">
-              {rounds.map((round) => {
-                const roundMatches = tournamentMatches.filter(match => match.match_round === round)
-                if (roundMatches.length === 0) return null
-                
-                return (
-                  <div key={round} className="">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
-                      {round === 'qualification' ? '资格赛' :
-                       round === 'round_16' ? '十六强' :
-                       round === 'quarter_final' ? '四分之一决赛' :
-                       round === 'semi_final' ? '半决赛' :
-                       round === 'final' ? '决赛' : round}
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {roundMatches.map((match) => (
-                        <div key={match.id} className={`p-4 rounded-lg border-2 ${
-                          match.match_status === 'completed' ? 'border-green-500 bg-green-50' :
-                          match.match_status === 'in_progress' ? 'border-yellow-500 bg-yellow-50' :
-                          'border-gray-200 bg-white'
-                        }`}>
-                          <div className="flex items-center justify-between mb-3">
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              match.match_status === 'completed' ? 'bg-green-100 text-green-800' :
-                              match.match_status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {match.match_status === 'completed' ? '已完成' :
-                               match.match_status === 'in_progress' ? '进行中' : '已安排'}
-                            </span>
-                            {match.court_number && (
-                              <span className="text-xs text-gray-500">场地 {match.court_number}</span>
-                            )}
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <div className={`flex items-center justify-between p-2 rounded ${
-                              match.winner_id === match.team1_id ? 'bg-yellow-100 font-bold' : 'bg-gray-50'
-                            }`}>
-                              <span className="text-sm">{match.team1?.name || '待定'}</span>
-                              <span className="font-bold">{match.team1_score}</span>
-                            </div>
-                            <div className="text-center text-xs text-gray-500">VS</div>
-                            <div className={`flex items-center justify-between p-2 rounded ${
-                              match.winner_id === match.team2_id ? 'bg-yellow-100 font-bold' : 'bg-gray-50'
-                            }`}>
-                              <span className="text-sm">{match.team2?.name || '待定'}</span>
-                              <span className="font-bold">{match.team2_score}</span>
-                            </div>
-                          </div>
-                          
-                          {match.scheduled_time && (
-                            <div className="mt-3 text-xs text-gray-500 text-center">
-                              {new Date(match.scheduled_time).toLocaleString()}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+            <>
+              {/* Championship Banner */}
+              {tournamentTeams.length > 0 && tournamentTeams[0].total_score > 0 && (
+                <div className="mb-8 text-center">
+                  <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white p-6 rounded-lg shadow-lg">
+                    <Trophy className="h-12 w-12 mx-auto mb-2" />
+                    <h3 className="text-2xl font-bold mb-1">🏆 冠军</h3>
+                    <p className="text-xl">{tournamentTeams[0].team_name}</p>
+                    <p className="text-lg opacity-90">总分: {tournamentTeams[0].total_score}分</p>
                   </div>
-                )
-              })}
-            </div>
+                </div>
+              )}
+              
+              {/* Team Rankings */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">队伍排名（按总分）</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {tournamentTeams.map((team, index) => {
+                    const isChampion = index === 0 && team.total_score > 0
+                    const isTopThree = index < 3 && team.total_score > 0
+                    
+                    return (
+                      <div key={team.team_id} className={`p-4 rounded-lg border-2 ${
+                        isChampion ? 'border-yellow-400 bg-yellow-50' :
+                        isTopThree ? 'border-green-400 bg-green-50' :
+                        'border-gray-200 bg-white'
+                      }`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-2">
+                            <span className={`text-2xl font-bold ${
+                              isChampion ? 'text-yellow-600' :
+                              isTopThree ? 'text-green-600' :
+                              'text-gray-600'
+                            }`}>#{index + 1}</span>
+                            {isChampion && <Trophy className="h-6 w-6 text-yellow-500" />}
+                             {isTopThree && !isChampion && <span className="text-lg">{index === 1 ? '🥈' : '🥉'}</span>}
+                          </div>
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            getTeamTypeColor(team.team_type)
+                          }`}>
+                            {getTeamTypeLabel(team.team_type)}
+                          </span>
+                        </div>
+                        
+                        <div className="text-center">
+                          <h4 className={`font-bold text-lg mb-2 ${
+                            isChampion ? 'text-yellow-900' :
+                            isTopThree ? 'text-green-900' :
+                            'text-gray-900'
+                          }`}>{team.team_name}</h4>
+                          
+                          <div className="space-y-1">
+                            <p className={`text-2xl font-bold ${
+                              isChampion ? 'text-yellow-600' :
+                              isTopThree ? 'text-green-600' :
+                              'text-blue-600'
+                            }`}>{team.total_score}分</p>
+                            <p className="text-sm text-gray-600">
+                              {team.matches_played}场比赛
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {team.wins}胜 {team.losses}负
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -397,7 +445,7 @@ export default function Home() {
       {/* Dynamic Scoreboard Display */}
       {selectedTournament ? (
         selectedTournament.tournament_type === 'group_stage' ? (
-          renderGroupStageScoreboard()
+          renderCumulativeScoreboard()
         ) : (
           renderEliminationScoreboard()
         )

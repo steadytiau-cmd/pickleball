@@ -158,6 +158,47 @@ const TournamentBracket: React.FC = () => {
     }
   };
 
+  // Calculate group standings based on match results
+  const calculateGroupStandings = () => {
+    const groupStandings: { [groupId: number]: { groupName: string; points: number; matches: { [teamType: string]: { wins: number; losses: number } } } } = {};
+    
+    // Initialize group standings
+    groups.forEach(group => {
+      groupStandings[group.id] = {
+        groupName: group.name,
+        points: 0,
+        matches: {
+          mens: { wins: 0, losses: 0 },
+          womens: { wins: 0, losses: 0 },
+          mixed: { wins: 0, losses: 0 }
+        }
+      };
+    });
+    
+    // Calculate points from completed matches
+    filteredMatches
+      .filter(match => match.match_status === 'completed' && match.winner_id)
+      .forEach(match => {
+        const winnerTeam = match.winner_id === match.team1_id ? match.team1 : match.team2;
+        const loserTeam = match.winner_id === match.team1_id ? match.team2 : match.team1;
+        
+        if (winnerTeam && loserTeam) {
+          // Winner's group gets 1 point
+          if (groupStandings[winnerTeam.group_id]) {
+            groupStandings[winnerTeam.group_id].points += 1;
+            groupStandings[winnerTeam.group_id].matches[winnerTeam.team_type].wins += 1;
+          }
+          
+          // Loser's group match record
+          if (groupStandings[loserTeam.group_id]) {
+            groupStandings[loserTeam.group_id].matches[loserTeam.team_type].losses += 1;
+          }
+        }
+      });
+    
+    return groupStandings;
+  };
+
   const getMatchStatusColor = (status: string) => {
     switch (status) {
       case 'completed': return 'bg-green-100 border-green-300';
@@ -578,47 +619,52 @@ const TournamentBracket: React.FC = () => {
       {selectedTournamentData?.tournament_type === 'group_stage' && (
         <div className="mt-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">小组积分榜</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {['mens', 'womens', 'mixed'].map((teamType) => (
-              <div key={teamType} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {getTeamTypeLabel(teamType)}
-                  </h3>
-                </div>
-                <div className="divide-y divide-gray-200">
-                  {teams
-                    .filter(team => team.team_type === teamType)
-                    .sort((a, b) => b.wins - a.wins || (a.losses - b.losses))
-                    .map((team, index) => (
-                      <div key={team.id} className="px-4 py-3 flex items-center justify-between">
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium text-gray-500">#{index + 1}</span>
-                            <span className="font-medium text-gray-900">
-                              {getGroupName(team.group_id)}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">小组总积分排名</h3>
+              <p className="text-sm text-gray-600 mt-1">每场比赛获胜小组得1分，最高3分（男双+女双+混双）</p>
+            </div>
+            <div className="divide-y divide-gray-200">
+              {(() => {
+                const groupStandings = calculateGroupStandings();
+                return Object.entries(groupStandings)
+                  .sort(([,a], [,b]) => b.points - a.points)
+                  .map(([groupId, standing], index) => {
+                    const isQualified = index < 4; // Top 4 groups qualify for semi-finals
+                    return (
+                      <div key={groupId} className={`px-4 py-4 ${isQualified ? 'bg-green-50' : ''}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <span className={`text-lg font-bold ${isQualified ? 'text-green-600' : 'text-gray-500'}`}>
+                              #{index + 1}
                             </span>
+                            <div>
+                              <div className="font-semibold text-lg text-gray-900">
+                                {standing.groupName}
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                男双: {standing.matches.mens.wins}胜{standing.matches.mens.losses}负 | 
+                                女双: {standing.matches.womens.wins}胜{standing.matches.womens.losses}负 | 
+                                混双: {standing.matches.mixed.wins}胜{standing.matches.mixed.losses}负
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-sm text-gray-600">
-                            {team.player1_name} / {team.player2_name}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-medium text-gray-900">
-                            {team.wins}胜 {team.losses}负
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            胜率: {team.wins + team.losses > 0 
-                              ? Math.round((team.wins / (team.wins + team.losses)) * 100) 
-                              : 0}%
+                          <div className="text-right">
+                            <div className={`text-2xl font-bold ${isQualified ? 'text-green-600' : 'text-gray-900'}`}>
+                              {standing.points} 分
+                            </div>
+                            {isQualified && (
+                              <div className="text-xs text-green-600 font-medium mt-1">
+                                ✓ 晋级半决赛
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
-                    ))
-                  }
-                </div>
-              </div>
-            ))}
+                    );
+                  });
+              })()}
+            </div>
           </div>
         </div>
       )}

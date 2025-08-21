@@ -35,6 +35,17 @@ export interface Team {
   group?: Group
 }
 
+export interface TeamCumulativeScore {
+  team_id: number
+  team_name: string
+  group_id: number
+  team_type: 'mens' | 'womens' | 'mixed'
+  total_score: number
+  matches_played: number
+  wins: number
+  losses: number
+}
+
 export interface Tournament {
   id: number
   name: string
