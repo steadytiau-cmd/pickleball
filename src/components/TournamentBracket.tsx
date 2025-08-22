@@ -46,7 +46,7 @@ const TournamentBracket: React.FC = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
+  const [selectedTournament, setSelectedTournament] = useState<number | string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -218,10 +218,23 @@ const TournamentBracket: React.FC = () => {
   };
 
   const filteredMatches = selectedTournament 
-    ? matches.filter(match => match.tournament_id === selectedTournament)
+    ? selectedTournament === 'group_stage_all'
+      ? matches.filter(match => {
+          const tournament = tournaments.find(t => t.id === match.tournament_id);
+          return tournament && tournament.tournament_type === 'group_stage';
+        })
+      : matches.filter(match => match.tournament_id === Number(selectedTournament))
     : [];
 
-  const selectedTournamentData = tournaments.find(t => t.id === selectedTournament);
+  const selectedTournamentData = selectedTournament === 'group_stage_all'
+    ? {
+        id: 'group_stage_all',
+        name: '小组赛',
+        tournament_type: 'group_stage',
+        is_active: tournaments.some(t => t.tournament_type === 'group_stage' && t.is_active),
+        team_type: null
+      }
+    : tournaments.find(t => t.id === selectedTournament);
 
   // Group matches by round for elimination tournaments
   const getMatchesByRound = () => {
@@ -545,23 +558,25 @@ const TournamentBracket: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-900 mb-6">比赛战绩</h1>
         
         <div className="flex flex-wrap gap-2 mb-6">
-          {/* Group Stage Buttons - One for each team type */}
-          {tournaments
-            .filter(t => t.tournament_type === 'group_stage')
-            .map(tournament => (
-              <button
-                key={tournament.id}
-                onClick={() => setSelectedTournament(tournament.id)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  selectedTournament === tournament.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                小组赛 - {tournament.team_type ? getTeamTypeLabel(tournament.team_type) : '全部'}
-              </button>
-            ))
-          }
+          {/* Group Stage Button - Single button for all group stage tournaments */}
+          {tournaments.some(t => t.tournament_type === 'group_stage') && (
+            <button
+              onClick={() => {
+                // Select the first group stage tournament or create a virtual selection
+                const groupTournament = tournaments.find(t => t.tournament_type === 'group_stage');
+                if (groupTournament) {
+                  setSelectedTournament('group_stage_all');
+                }
+              }}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                selectedTournament === 'group_stage_all'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              小组赛
+            </button>
+          )}
           
           {/* Elimination Tournament Buttons */}
           {tournaments
@@ -576,7 +591,7 @@ const TournamentBracket: React.FC = () => {
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
-                {tournament.team_type ? getTeamTypeLabel(tournament.team_type) : ''}淘汰赛
+                混双淘汰赛
               </button>
             ))
           }
