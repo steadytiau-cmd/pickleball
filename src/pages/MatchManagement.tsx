@@ -22,7 +22,6 @@ interface MatchFormData {
   tournament_id: number
   match_round: string
   court_number: number
-  scheduled_time: string
 }
 
 interface ScoreUpdateData {
@@ -47,8 +46,7 @@ export default function MatchManagement() {
     team2_id: 0,
     tournament_id: 0,
     match_round: 'qualification',
-    court_number: 1,
-    scheduled_time: ''
+    court_number: 1
   })
   const [scoreData, setScoreData] = useState<ScoreUpdateData>({
     team1_score: 0,
@@ -125,9 +123,6 @@ export default function MatchManagement() {
     if (formData.team1_id === formData.team2_id) {
       errors.teams = '不能选择相同的队伍'
     }
-    if (!formData.scheduled_time) {
-      errors.scheduled_time = '请选择比赛时间'
-    }
 
     setFormErrors(errors)
     return Object.keys(errors).length === 0
@@ -151,7 +146,6 @@ export default function MatchManagement() {
             tournament_id: formData.tournament_id,
             match_round: formData.match_round,
             court_number: formData.court_number,
-            scheduled_time: formData.scheduled_time,
             updated_at: new Date().toISOString()
           })
           .eq('id', editingMatch.id)
@@ -167,7 +161,6 @@ export default function MatchManagement() {
             tournament_id: formData.tournament_id,
             match_round: formData.match_round,
             court_number: formData.court_number,
-            scheduled_time: formData.scheduled_time,
             team1_score: 0,
             team2_score: 0,
             match_status: 'scheduled'
@@ -248,8 +241,7 @@ export default function MatchManagement() {
       team2_id: match.team2_id,
       tournament_id: match.tournament_id,
       match_round: match.match_round,
-      court_number: match.court_number || 1,
-      scheduled_time: match.scheduled_time ? new Date(match.scheduled_time).toISOString().slice(0, 16) : ''
+      court_number: match.court_number || 1
     })
     setShowAddForm(true)
   }
@@ -290,8 +282,7 @@ export default function MatchManagement() {
       team2_id: teams.length > 1 ? teams[1].id : 0,
       tournament_id: tournaments.length > 0 ? tournaments[0].id : 0,
       match_round: 'qualification',
-      court_number: 1,
-      scheduled_time: ''
+      court_number: 1
     })
     setFormErrors({})
     setEditingMatch(null)
@@ -674,22 +665,7 @@ export default function MatchManagement() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  比赛时间
-                </label>
-                <input
-                  type="datetime-local"
-                  value={formData.scheduled_time}
-                  onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 ${
-                    formErrors.scheduled_time ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                />
-                {formErrors.scheduled_time && (
-                  <p className="mt-1 text-sm text-red-600">{formErrors.scheduled_time}</p>
-                )}
-              </div>
+
 
               <div className="flex space-x-3 pt-4">
                 <button
