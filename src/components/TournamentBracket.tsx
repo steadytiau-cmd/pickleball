@@ -248,7 +248,7 @@ const TournamentBracket: React.FC = () => {
 
   const renderEliminationBracket = () => {
     const matchesByRound = getMatchesByRound();
-    const rounds = ['quarter_final', 'semi_final', 'final'];
+    const rounds = ['qualification', 'round_16', 'quarter_final', 'semi_final', 'final'];
     const activeRounds = rounds.filter(round => matchesByRound[round].length > 0);
     
     if (activeRounds.length === 0) {

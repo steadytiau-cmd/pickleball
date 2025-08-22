@@ -352,89 +352,193 @@ export default function Home() {
   }
 
   const renderEliminationScoreboard = () => {
-    // Get teams participating in this tournament and their cumulative scores
-    const tournamentTeams = cumulativeScores
-      .filter(score => {
-        // Filter teams that have matches in this tournament
-        return matches.some(match => 
-          match.tournament_id === selectedTournament?.id && 
-          (match.team1_id === score.team_id || match.team2_id === score.team_id)
-        )
-      })
-      .sort((a, b) => b.total_score - a.total_score)
+    // Get matches for the selected elimination tournament
+    const eliminationMatches = matches.filter(match => 
+      match.tournament_id === selectedTournament?.id
+    )
     
-    const totalScore = tournamentTeams.reduce((total, team) => total + team.total_score, 0)
+    // Group matches by round for elimination tournaments
+    const getMatchesByRound = () => {
+      const rounds = ['qualification', 'round_16', 'quarter_final', 'semi_final', 'final'];
+      const matchesByRound: { [key: string]: any[] } = {};
+      
+      rounds.forEach(round => {
+        matchesByRound[round] = eliminationMatches.filter(match => match.match_round === round);
+      });
+      
+      return matchesByRound;
+    };
+    
+    const getRoundLabel = (round: string) => {
+      switch (round) {
+        case 'qualification': return '资格赛';
+        case 'round_16': return '十六强';
+        case 'quarter_final': return '四分之一决赛';
+        case 'semi_final': return '半决赛';
+        case 'final': return '决赛';
+        default: return round;
+      }
+    };
+    
+    const getMatchStatusText = (status: string) => {
+      switch (status) {
+        case 'completed': return '已完成';
+        case 'in_progress': return '进行中';
+        case 'scheduled': return '待开始';
+        default: return status;
+      }
+    };
+    
+    const matchesByRound = getMatchesByRound();
+    const rounds = ['qualification', 'round_16', 'quarter_final', 'semi_final', 'final'];
+    const activeRounds = rounds.filter(round => matchesByRound[round].length > 0);
+    
+    if (activeRounds.length === 0) {
+      return (
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">混双淘汰赛对阵图</h2>
+          <div className="text-center py-12">
+            <div className="text-gray-500 text-lg">暂无淘汰赛数据</div>
+          </div>
+        </div>
+      );
+    }
     
     return (
-      <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-        <div className="bg-gradient-to-r from-purple-500 via-pink-500 to-red-600 px-6 py-6">
-          <h2 className="text-2xl font-bold text-white flex items-center">
-            <Target className="h-6 w-6 mr-3 animate-bounce" />
-            🎯 混双淘汰赛总分 🎯
-          </h2>
-          <p className="text-purple-100 mt-2">激烈对决，谁与争锋！</p>
-        </div>
-        <div className="p-8">
-          {tournamentTeams.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="bg-gradient-to-r from-gray-100 to-gray-200 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-4">
-                <Target className="h-12 w-12 text-gray-400" />
-              </div>
-              <p className="text-gray-500 text-lg">暂无参赛队伍</p>
-              <p className="text-gray-400 text-sm mt-2">等待勇士们的挑战...</p>
-            </div>
-          ) : (
-            <>
-              {/* Main Score Display */}
-              <div className="text-center mb-8">
-                <div className="relative">
-                  {/* Animated background circles */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-48 h-48 bg-gradient-to-r from-purple-200 to-pink-200 rounded-full animate-pulse opacity-30"></div>
-                  </div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-32 h-32 bg-gradient-to-r from-pink-300 to-red-300 rounded-full animate-ping opacity-20"></div>
-                  </div>
-                  
-                  {/* Score */}
-                  <div className="relative z-10 py-12">
-                    <div className="text-8xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent animate-pulse">
-                      {totalScore}
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">混双淘汰赛对阵图</h2>
+        
+        <div className="overflow-x-auto pb-4">
+          <div className="min-w-max px-4">
+            {/* Tournament Bracket Container */}
+            <div className="flex items-start justify-center space-x-8 md:space-x-12 lg:space-x-16 py-8">
+              {activeRounds.map((round, roundIndex) => {
+                const roundMatches = matchesByRound[round];
+                const isLastRound = roundIndex === activeRounds.length - 1;
+                
+                return (
+                  <div key={round} className="flex flex-col items-center">
+                    {/* Round Title */}
+                    <div className="mb-6 md:mb-8">
+                       <h3 className="text-base md:text-lg font-bold text-gray-900 text-center px-3 md:px-4 py-2 bg-blue-100 rounded-lg whitespace-nowrap">
+                         {getRoundLabel(round)}
+                       </h3>
+                     </div>
+                    
+                    {/* Matches Container */}
+                    <div className="relative">
+                      <div className="flex flex-col space-y-8 md:space-y-10 lg:space-y-12">
+                        {roundMatches.map((match, matchIndex) => (
+                          <div key={match.id} className="relative">
+                            {/* Match Card */}
+                            <div className={`w-56 sm:w-60 md:w-64 bg-white rounded-lg border-2 shadow-lg transition-all hover:shadow-xl ${
+                              match.match_status === 'completed' ? 'border-green-500' :
+                              match.match_status === 'in_progress' ? 'border-yellow-500' :
+                              'border-gray-300'
+                            }`}>
+                              {/* Match Header */}
+                              <div className="px-4 py-2 bg-gray-50 rounded-t-lg border-b">
+                                <div className="flex items-center justify-between">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                    match.match_status === 'completed' ? 'bg-green-100 text-green-800' :
+                                    match.match_status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {getMatchStatusText(match.match_status)}
+                                  </span>
+                                  <span className="text-xs text-gray-500">场地 {match.court_number}</span>
+                                </div>
+                              </div>
+                              
+                              {/* Teams */}
+                              <div className="p-4">
+                                {/* Team 1 */}
+                                <div className={`p-3 rounded-lg mb-2 ${
+                                  match.winner_id === match.team1_id ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-gray-50'
+                                }`}>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                      <div className="font-semibold text-sm">
+                                        {match.team1?.name || '待定'}
+                                      </div>
+                                      {match.team1 && (
+                                        <div className="text-xs text-gray-600 mt-1">
+                                          {match.team1.player1_name} / {match.team1.player2_name}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="text-xl font-bold ml-2">
+                                      {match.team1_score || 0}
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {/* VS Divider */}
+                                <div className="text-center text-xs text-gray-400 font-medium my-1">VS</div>
+                                
+                                {/* Team 2 */}
+                                <div className={`p-3 rounded-lg ${
+                                  match.winner_id === match.team2_id ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-gray-50'
+                                }`}>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                      <div className="font-semibold text-sm">
+                                        {match.team2?.name || '待定'}
+                                      </div>
+                                      {match.team2 && (
+                                        <div className="text-xs text-gray-600 mt-1">
+                                          {match.team2.player1_name} / {match.team2.player2_name}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="text-xl font-bold ml-2">
+                                      {match.team2_score || 0}
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {/* Winner Badge */}
+                                {match.winner_id && (
+                                  <div className="mt-3 text-center">
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800">
+                                      🏆 {match.winner_id === match.team1_id ? match.team1?.name : match.team2?.name}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="text-2xl font-bold text-gray-600 mt-2">总分</div>
-                    <div className="text-lg text-gray-500 mt-1">🔥 淘汰赛累计分数 🔥</div>
                   </div>
-                </div>
-              </div>
-              
-              {/* Tournament Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                <div className="bg-gradient-to-r from-purple-100 to-purple-200 rounded-xl p-6 text-center transform hover:scale-105 transition-transform duration-300">
-                  <div className="text-3xl font-bold text-purple-700">{tournamentTeams.length}</div>
-                  <div className="text-sm text-purple-600 mt-1">参赛队伍</div>
-                  <div className="text-xs text-purple-500 mt-2">💪 勇敢挑战者</div>
-                </div>
-                <div className="bg-gradient-to-r from-pink-100 to-pink-200 rounded-xl p-6 text-center transform hover:scale-105 transition-transform duration-300">
-                  <div className="text-3xl font-bold text-pink-700">
-                    {tournamentTeams.length > 0 ? Math.round(totalScore / tournamentTeams.length) : 0}
+                );
+              })}
+            </div>
+            
+            {/* Champion Section */}
+            {(() => {
+              const finalMatch = matchesByRound['final'][0];
+              if (finalMatch && finalMatch.winner_id) {
+                const winner = finalMatch.winner_id === finalMatch.team1_id ? finalMatch.team1 : finalMatch.team2;
+                return (
+                  <div className="mt-12 text-center">
+                    <div className="inline-block bg-gradient-to-r from-yellow-400 to-yellow-600 text-white px-8 py-4 rounded-lg shadow-lg">
+                      <div className="text-2xl font-bold mb-2">🏆 冠军</div>
+                      <div className="text-xl font-semibold">{winner?.name}</div>
+                      {winner && (
+                        <div className="text-sm opacity-90 mt-1">
+                          {winner.player1_name} / {winner.player2_name}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-sm text-pink-600 mt-1">平均分数</div>
-                  <div className="text-xs text-pink-500 mt-2">📊 实力指标</div>
-                </div>
-              </div>
-              
-              {/* Achievement Badge */}
-              {totalScore > 0 && (
-                <div className="mt-8 text-center">
-                  <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 rounded-full text-white font-bold text-lg shadow-lg transform hover:scale-110 transition-transform duration-300">
-                    <Trophy className="h-6 w-6 mr-2 animate-bounce" />
-                    淘汰赛进行中
-                    <Trophy className="h-6 w-6 ml-2 animate-bounce" />
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+                );
+              }
+              return null;
+            })()
+            }
+          </div>
         </div>
       </div>
     )
