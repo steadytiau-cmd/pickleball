@@ -545,43 +545,41 @@ const TournamentBracket: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-900 mb-6">比赛战绩</h1>
         
         <div className="flex flex-wrap gap-2 mb-6">
-          {/* Group Stage Button */}
-          {tournaments.some(t => t.tournament_type === 'group_stage') && (
-            <button
-              onClick={() => {
-                const groupStageTournament = tournaments.find(t => t.tournament_type === 'group_stage');
-                if (groupStageTournament) {
-                  setSelectedTournament(groupStageTournament.id);
-                }
-              }}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                selectedTournamentData?.tournament_type === 'group_stage'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              小组赛
-            </button>
-          )}
+          {/* Group Stage Buttons - One for each team type */}
+          {tournaments
+            .filter(t => t.tournament_type === 'group_stage')
+            .map(tournament => (
+              <button
+                key={tournament.id}
+                onClick={() => setSelectedTournament(tournament.id)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  selectedTournament === tournament.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                小组赛 - {tournament.team_type ? getTeamTypeLabel(tournament.team_type) : '全部'}
+              </button>
+            ))
+          }
           
-          {/* Elimination Tournament Button */}
-          {tournaments.some(t => t.tournament_type === 'elimination') && (
-            <button
-              onClick={() => {
-                const eliminationTournament = tournaments.find(t => t.tournament_type === 'elimination');
-                if (eliminationTournament) {
-                  setSelectedTournament(eliminationTournament.id);
-                }
-              }}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                selectedTournamentData?.tournament_type === 'elimination'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              混双淘汰赛
-            </button>
-          )}
+          {/* Elimination Tournament Buttons */}
+          {tournaments
+            .filter(t => t.tournament_type === 'elimination')
+            .map(tournament => (
+              <button
+                key={tournament.id}
+                onClick={() => setSelectedTournament(tournament.id)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  selectedTournament === tournament.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {tournament.team_type ? getTeamTypeLabel(tournament.team_type) : ''}淘汰赛
+              </button>
+            ))
+          }
         </div>
 
         {selectedTournamentData && (

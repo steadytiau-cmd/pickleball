@@ -89,6 +89,7 @@ export default function MatchManagement() {
         supabase
           .from('tournaments')
           .select('*')
+          .in('tournament_type', ['group_stage', 'elimination'])
           .order('name')
       ])
 

@@ -83,9 +83,7 @@ export default function Home() {
         team2:teams!matches_team2_id_fkey(*),
         tournament:tournaments(*)
       `)
-      .in('match_status', ['in_progress', 'completed'])
       .order('created_at', { ascending: false })
-      .limit(10)
     
     if (error) {
       console.error('Error fetching matches:', error)
