@@ -23,6 +23,7 @@ export interface Team {
   name: string
   group_id?: number
   team_type: 'mens' | 'womens' | 'mixed'
+  tournament_type: 'group_stage' | 'mixed_double_championship'
   player1_name: string
   player2_name: string
   wins: number

@@ -36,7 +36,7 @@ export default function AdminDashboard() {
     completedMatches: 0,
     totalTournaments: 0
   })
-  const [recentMatches, setRecentMatches] = useState<Match[]>([])
+
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
@@ -75,19 +75,7 @@ export default function AdminDashboard() {
 
       setTournaments(tournamentsResult.data || [])
 
-      // Fetch recent matches
-      const { data: matches } = await supabase
-        .from('matches')
-        .select(`
-          *,
-          team1:teams!matches_team1_id_fkey(*),
-          team2:teams!matches_team2_id_fkey(*),
-          tournament:tournaments(*)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(5)
 
-      setRecentMatches(matches || [])
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
@@ -111,23 +99,7 @@ export default function AdminDashboard() {
     navigate('/admin/login')
   }
 
-  const getMatchStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800'
-      case 'in_progress': return 'bg-yellow-100 text-yellow-800'
-      case 'scheduled': return 'bg-blue-100 text-blue-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
 
-  const getMatchStatusLabel = (status: string) => {
-    switch (status) {
-      case 'completed': return '已完成'
-      case 'in_progress': return '进行中'
-      case 'scheduled': return '已安排'
-      default: return status
-    }
-  }
 
   if (loading) {
     return (
@@ -222,108 +194,56 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Quick Actions */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">快速操作</h2>
-              </div>
-              <div className="p-6 space-y-4">
-                <button
-                  onClick={() => navigate('/admin/teams')}
-                  className="w-full flex items-center justify-between p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <Users className="h-5 w-5 text-blue-600" />
-                    <span className="font-medium text-blue-900">管理队伍</span>
-                  </div>
-                  <span className="text-blue-600">→</span>
-                </button>
-
-                <button
-                  onClick={() => navigate('/admin/matches')}
-                  className="w-full flex items-center justify-between p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="h-5 w-5 text-green-600" />
-                    <span className="font-medium text-green-900">管理比赛</span>
-                  </div>
-                  <span className="text-green-600">→</span>
-                </button>
-
-                <button
-                  onClick={() => navigate('/admin/tournaments')}
-                  className="w-full flex items-center justify-between p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <Trophy className="h-5 w-5 text-purple-600" />
-                    <span className="font-medium text-purple-900">管理锦标赛</span>
-                  </div>
-                  <span className="text-purple-600">→</span>
-                </button>
-
-                <button
-                  onClick={() => navigate('/')}
-                  className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <BarChart3 className="h-5 w-5 text-gray-600" />
-                    <span className="font-medium text-gray-900">查看计分板</span>
-                  </div>
-                  <span className="text-gray-600">→</span>
-                </button>
-              </div>
+        {/* Quick Actions */}
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">快速操作</h2>
             </div>
-          </div>
-
-          {/* Recent Matches */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-900">最近比赛</h2>
-                  <button
-                    onClick={() => navigate('/admin/matches')}
-                    className="text-sm text-blue-600 hover:text-blue-800"
-                  >
-                    查看全部
-                  </button>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button
+                onClick={() => navigate('/admin/teams')}
+                className="flex items-center justify-between p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+              >
+                <div className="flex items-center space-x-3">
+                  <Users className="h-5 w-5 text-blue-600" />
+                  <span className="font-medium text-blue-900">管理队伍</span>
                 </div>
-              </div>
-              <div className="p-6">
-                {recentMatches.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">暂无比赛记录</p>
-                ) : (
-                  <div className="space-y-4">
-                    {recentMatches.map((match) => (
-                      <div key={match.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-4">
-                          <div className={`px-2 py-1 rounded-full text-xs font-semibold ${getMatchStatusColor(match.match_status)}`}>
-                            {getMatchStatusLabel(match.match_status)}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-900">
-                              {match.team1?.name} vs {match.team2?.name}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              {match.tournament?.name} - {match.match_round}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-gray-900">
-                            {match.team1_score} - {match.team2_score}
-                          </p>
-                          {match.court_number && (
-                            <p className="text-sm text-gray-500">场地 {match.court_number}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                <span className="text-blue-600">→</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/admin/matches')}
+                className="flex items-center justify-between p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+              >
+                <div className="flex items-center space-x-3">
+                  <Calendar className="h-5 w-5 text-green-600" />
+                  <span className="font-medium text-green-900">管理比赛</span>
+                </div>
+                <span className="text-green-600">→</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/admin/tournaments')}
+                className="flex items-center justify-between p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
+              >
+                <div className="flex items-center space-x-3">
+                  <Trophy className="h-5 w-5 text-purple-600" />
+                  <span className="font-medium text-purple-900">管理锦标赛</span>
+                </div>
+                <span className="text-purple-600">→</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/')}
+                className="flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <div className="flex items-center space-x-3">
+                  <BarChart3 className="h-5 w-5 text-gray-600" />
+                  <span className="font-medium text-gray-900">查看计分板</span>
+                </div>
+                <span className="text-gray-600">→</span>
+              </button>
             </div>
           </div>
         </div>

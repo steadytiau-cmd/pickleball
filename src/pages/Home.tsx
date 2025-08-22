@@ -150,6 +150,7 @@ export default function Home() {
   const getTournamentTypeLabel = (type: string) => {
     switch (type) {
       case 'group_stage': return '小组赛'
+      case 'elimination': return '混双淘汰赛'
       case 'single_elimination': return '单淘汰赛'
       default: return type
     }
@@ -158,7 +159,7 @@ export default function Home() {
   const getTournamentTypeColor = (type: string) => {
     switch (type) {
       case 'group_stage': return 'bg-blue-100 text-blue-800'
-      case 'single_elimination': return 'bg-purple-100 text-purple-800'
+      case 'elimination': return 'bg-purple-100 text-purple-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
@@ -187,127 +188,168 @@ export default function Home() {
     }
   }
 
-  const renderCumulativeScoreboard = () => (
-    <>
-      {/* Cumulative Scores by Group */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-        {groups.map((group) => {
-          const groupScores = cumulativeScores.filter(score => score.group_id === group.id)
-          return (
-            <div key={group.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="bg-gradient-to-r from-green-500 to-blue-500 px-6 py-4">
-                <h2 className="text-xl font-bold text-white flex items-center">
-                  <Users className="h-5 w-5 mr-2" />
-                  {group.name} - 累计总分
-                </h2>
-              </div>
-              <div className="p-6">
-                {groupScores.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">暂无队伍</p>
-                ) : (
-                  <div className="space-y-3">
-                    {['mens', 'womens', 'mixed'].map((teamType) => {
-                      const typeScores = groupScores.filter(score => score.team_type === teamType)
-                        .sort((a, b) => b.total_score - a.total_score)
-                      return (
-                        <div key={teamType}>
-                          <h3 className={`text-sm font-semibold px-2 py-1 rounded-full inline-block mb-2 ${getTeamTypeColor(teamType)}`}>
-                            {getTeamTypeLabel(teamType)}
-                          </h3>
-                          {typeScores.length === 0 ? (
-                            <p className="text-gray-400 text-sm ml-2">暂无队伍</p>
+  // 为每个小组生成不同的渐变色
+  const getGroupGradient = (index: number) => {
+    const gradients = [
+      'from-blue-500 to-purple-500',
+      'from-green-500 to-teal-500', 
+      'from-orange-500 to-red-500',
+      'from-pink-500 to-rose-500',
+      'from-indigo-500 to-blue-500',
+      'from-yellow-500 to-orange-500',
+      'from-purple-500 to-pink-500',
+      'from-teal-500 to-green-500'
+    ]
+    return gradients[index % gradients.length]
+  }
+
+  const renderCumulativeScoreboard = () => {
+    // Calculate total scores for each group and sort by highest score
+    const groupTotalScores = groups.map(group => {
+      const groupScores = cumulativeScores
+        .filter(score => score.group_id === group.id)
+      const totalScore = groupScores.reduce((total, score) => total + score.total_score, 0)
+      return {
+        ...group,
+        totalScore,
+        hasTeams: groupScores.length > 0
+      }
+    }).sort((a, b) => b.totalScore - a.totalScore)
+
+    const getRankIcon = (rank: number) => {
+      switch (rank) {
+        case 1: return '🥇'
+        case 2: return '🥈'
+        case 3: return '🥉'
+        default: return `#${rank}`
+      }
+    }
+
+    const getRankColor = (rank: number) => {
+      switch (rank) {
+        case 1: return 'from-yellow-400 via-yellow-500 to-yellow-600'
+        case 2: return 'from-gray-300 via-gray-400 to-gray-500'
+        case 3: return 'from-orange-400 via-orange-500 to-orange-600'
+        default: return 'from-blue-400 via-blue-500 to-blue-600'
+      }
+    }
+
+    const getScoreColor = (rank: number) => {
+      switch (rank) {
+        case 1: return 'text-yellow-600'
+        case 2: return 'text-gray-600'
+        case 3: return 'text-orange-600'
+        default: return 'text-blue-600'
+      }
+    }
+
+    return (
+      <>
+        {/* Cumulative Scores by Group */}
+        <div className="bg-white rounded-xl shadow-xl overflow-hidden">
+          <div className="bg-gradient-to-r from-green-500 via-blue-500 to-purple-600 px-6 py-6">
+            <h2 className="text-2xl font-bold text-white flex items-center">
+              <Trophy className="h-6 w-6 mr-3 animate-pulse" />
+              🏆 小组赛总分排行榜 🏆
+            </h2>
+            <p className="text-green-100 mt-2">男双 + 女双 + 混双 累计分数</p>
+          </div>
+          <div className="p-6">
+            <div className="space-y-4">
+              {groupTotalScores.map((group, index) => {
+                const rank = index + 1
+                return (
+                  <div 
+                    key={group.id} 
+                    className={`relative overflow-hidden rounded-xl border-2 transition-all duration-300 hover:scale-105 hover:shadow-lg ${
+                      rank === 1 ? 'border-yellow-400 shadow-yellow-200 shadow-lg' :
+                      rank === 2 ? 'border-gray-400 shadow-gray-200 shadow-md' :
+                      rank === 3 ? 'border-orange-400 shadow-orange-200 shadow-md' :
+                      'border-blue-300 shadow-blue-100 shadow-sm'
+                    }`}
+                  >
+                    {/* Animated background gradient */}
+                    <div className={`absolute inset-0 bg-gradient-to-r ${getRankColor(rank)} opacity-10 animate-pulse`}></div>
+                    
+                    <div className="relative p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          {/* Rank Badge */}
+                          <div className={`flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r ${getRankColor(rank)} text-white font-bold text-lg shadow-lg`}>
+                            {getRankIcon(rank)}
+                          </div>
+                          
+                          {/* Group Info */}
+                          <div>
+                            <h3 className="text-xl font-bold text-gray-800 flex items-center">
+                              <Users className="h-5 w-5 mr-2" />
+                              {group.name}
+                            </h3>
+                            <p className="text-sm text-gray-500">第 {rank} 名</p>
+                          </div>
+                        </div>
+                        
+                        {/* Score Display */}
+                        <div className="text-right">
+                          {group.hasTeams ? (
+                            <>
+                              <div className={`text-4xl font-bold ${getScoreColor(rank)} animate-pulse`}>
+                                {group.totalScore}分
+                              </div>
+                              <div className="text-sm text-gray-500 mt-1">
+                                🔥 累计总分
+                              </div>
+                            </>
                           ) : (
-                            <div className="space-y-2">
-                              {typeScores.map((score, index) => {
-                                const isChampion = index === 0 && score.total_score > 0
-                                return (
-                                  <div key={score.team_id} className={`flex items-center justify-between p-3 rounded-lg ${
-                                    isChampion ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-gray-50'
-                                  }`}>
-                                    <div className="flex items-center space-x-3">
-                                      <span className={`text-lg font-bold ${
-                                        isChampion ? 'text-yellow-600' : 'text-gray-600'
-                                      }`}>#{index + 1}</span>
-                                      {isChampion && (
-                                        <Trophy className="h-5 w-5 text-yellow-500" />
-                                      )}
-                                      <div>
-                                        <p className={`font-semibold ${
-                                          isChampion ? 'text-yellow-900' : 'text-gray-900'
-                                        }`}>{score.team_name}</p>
-                                        <p className="text-sm text-gray-600">
-                                          {score.matches_played}场比赛 · {score.wins}胜{score.losses}负
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className={`text-xl font-bold ${
-                                        isChampion ? 'text-yellow-600' : 'text-green-600'
-                                      }`}>{score.total_score}分</p>
-                                      <p className="text-sm text-gray-500">总分</p>
-                                    </div>
-                                  </div>
-                                )
-                              })}
+                            <div className="text-gray-400">
+                              <div className="text-2xl font-bold">--</div>
+                              <div className="text-sm">暂无队伍</div>
                             </div>
                           )}
                         </div>
-                      )
-                    })}
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      {group.hasTeams && groupTotalScores[0].totalScore > 0 && (
+                        <div className="mt-4">
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className={`h-2 rounded-full bg-gradient-to-r ${getRankColor(rank)} transition-all duration-1000 ease-out`}
+                              style={{ width: `${(group.totalScore / groupTotalScores[0].totalScore) * 100}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
+                )
+              })}
+            </div>
+            
+            {/* Competition Stats */}
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-gradient-to-r from-green-100 to-green-200 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-green-700">{groups.length}</div>
+                <div className="text-sm text-green-600">参赛小组</div>
+              </div>
+              <div className="bg-gradient-to-r from-blue-100 to-blue-200 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-blue-700">
+                  {groupTotalScores.reduce((sum, group) => sum + group.totalScore, 0)}
+                </div>
+                <div className="text-sm text-blue-600">总计分数</div>
+              </div>
+              <div className="bg-gradient-to-r from-purple-100 to-purple-200 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-purple-700">
+                  {groupTotalScores[0]?.totalScore || 0}
+                </div>
+                <div className="text-sm text-purple-600">最高分数</div>
               </div>
             </div>
-          )
-        })}
-      </div>
-
-      {/* Recent Matches for Selected Tournament */}
-      <div className="bg-white rounded-lg shadow-md">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">最近比赛 - {selectedTournament?.name}</h2>
+          </div>
         </div>
-        <div className="p-6">
-          {matches.filter(match => match.tournament_id === selectedTournament?.id).length === 0 ? (
-            <p className="text-gray-500 text-center py-8">暂无比赛记录</p>
-          ) : (
-            <div className="space-y-4">
-              {matches.filter(match => match.tournament_id === selectedTournament?.id).map((match) => (
-                <div key={match.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                      match.match_status === 'completed' ? 'bg-green-100 text-green-800' :
-                      match.match_status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {match.match_status === 'completed' ? '已完成' :
-                       match.match_status === 'in_progress' ? '进行中' : '已安排'}
-                    </div>
-                    <div>
-                      <p className="font-semibold">
-                        {match.team1?.name} vs {match.team2?.name}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {match.tournament?.name} - {match.match_round}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold">
-                      {match.team1_score} - {match.team2_score}
-                    </p>
-                    {match.court_number && (
-                      <p className="text-sm text-gray-500">场地 {match.court_number}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </>
-  )
+      </>
+    )
+  }
 
   const renderEliminationScoreboard = () => {
     // Get teams participating in this tournament and their cumulative scores
@@ -321,88 +363,76 @@ export default function Home() {
       })
       .sort((a, b) => b.total_score - a.total_score)
     
+    const totalScore = tournamentTeams.reduce((total, team) => total + team.total_score, 0)
+    
     return (
-      <div className="bg-white rounded-lg shadow-md">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center">
-            <Target className="h-5 w-5 mr-2" />
-            淘汰赛累计总分 - {selectedTournament?.name}
+      <div className="bg-white rounded-xl shadow-xl overflow-hidden">
+        <div className="bg-gradient-to-r from-purple-500 via-pink-500 to-red-600 px-6 py-6">
+          <h2 className="text-2xl font-bold text-white flex items-center">
+            <Target className="h-6 w-6 mr-3 animate-bounce" />
+            🎯 混双淘汰赛总分 🎯
           </h2>
+          <p className="text-purple-100 mt-2">激烈对决，谁与争锋！</p>
         </div>
-        <div className="p-6">
+        <div className="p-8">
           {tournamentTeams.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">暂无参赛队伍</p>
+            <div className="text-center py-12">
+              <div className="bg-gradient-to-r from-gray-100 to-gray-200 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-4">
+                <Target className="h-12 w-12 text-gray-400" />
+              </div>
+              <p className="text-gray-500 text-lg">暂无参赛队伍</p>
+              <p className="text-gray-400 text-sm mt-2">等待勇士们的挑战...</p>
+            </div>
           ) : (
             <>
-              {/* Championship Banner */}
-              {tournamentTeams.length > 0 && tournamentTeams[0].total_score > 0 && (
-                <div className="mb-8 text-center">
-                  <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white p-6 rounded-lg shadow-lg">
-                    <Trophy className="h-12 w-12 mx-auto mb-2" />
-                    <h3 className="text-2xl font-bold mb-1">🏆 冠军</h3>
-                    <p className="text-xl">{tournamentTeams[0].team_name}</p>
-                    <p className="text-lg opacity-90">总分: {tournamentTeams[0].total_score}分</p>
+              {/* Main Score Display */}
+              <div className="text-center mb-8">
+                <div className="relative">
+                  {/* Animated background circles */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-48 h-48 bg-gradient-to-r from-purple-200 to-pink-200 rounded-full animate-pulse opacity-30"></div>
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-32 h-32 bg-gradient-to-r from-pink-300 to-red-300 rounded-full animate-ping opacity-20"></div>
+                  </div>
+                  
+                  {/* Score */}
+                  <div className="relative z-10 py-12">
+                    <div className="text-8xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent animate-pulse">
+                      {totalScore}
+                    </div>
+                    <div className="text-2xl font-bold text-gray-600 mt-2">总分</div>
+                    <div className="text-lg text-gray-500 mt-1">🔥 淘汰赛累计分数 🔥</div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Tournament Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                <div className="bg-gradient-to-r from-purple-100 to-purple-200 rounded-xl p-6 text-center transform hover:scale-105 transition-transform duration-300">
+                  <div className="text-3xl font-bold text-purple-700">{tournamentTeams.length}</div>
+                  <div className="text-sm text-purple-600 mt-1">参赛队伍</div>
+                  <div className="text-xs text-purple-500 mt-2">💪 勇敢挑战者</div>
+                </div>
+                <div className="bg-gradient-to-r from-pink-100 to-pink-200 rounded-xl p-6 text-center transform hover:scale-105 transition-transform duration-300">
+                  <div className="text-3xl font-bold text-pink-700">
+                    {tournamentTeams.length > 0 ? Math.round(totalScore / tournamentTeams.length) : 0}
+                  </div>
+                  <div className="text-sm text-pink-600 mt-1">平均分数</div>
+                  <div className="text-xs text-pink-500 mt-2">📊 实力指标</div>
+                </div>
+              </div>
+              
+              {/* Achievement Badge */}
+              {totalScore > 0 && (
+                <div className="mt-8 text-center">
+                  <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 rounded-full text-white font-bold text-lg shadow-lg transform hover:scale-110 transition-transform duration-300">
+                    <Trophy className="h-6 w-6 mr-2 animate-bounce" />
+                    淘汰赛进行中
+                    <Trophy className="h-6 w-6 ml-2 animate-bounce" />
                   </div>
                 </div>
               )}
-              
-              {/* Team Rankings */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">队伍排名（按总分）</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {tournamentTeams.map((team, index) => {
-                    const isChampion = index === 0 && team.total_score > 0
-                    const isTopThree = index < 3 && team.total_score > 0
-                    
-                    return (
-                      <div key={team.team_id} className={`p-4 rounded-lg border-2 ${
-                        isChampion ? 'border-yellow-400 bg-yellow-50' :
-                        isTopThree ? 'border-green-400 bg-green-50' :
-                        'border-gray-200 bg-white'
-                      }`}>
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center space-x-2">
-                            <span className={`text-2xl font-bold ${
-                              isChampion ? 'text-yellow-600' :
-                              isTopThree ? 'text-green-600' :
-                              'text-gray-600'
-                            }`}>#{index + 1}</span>
-                            {isChampion && <Trophy className="h-6 w-6 text-yellow-500" />}
-                             {isTopThree && !isChampion && <span className="text-lg">{index === 1 ? '🥈' : '🥉'}</span>}
-                          </div>
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            getTeamTypeColor(team.team_type)
-                          }`}>
-                            {getTeamTypeLabel(team.team_type)}
-                          </span>
-                        </div>
-                        
-                        <div className="text-center">
-                          <h4 className={`font-bold text-lg mb-2 ${
-                            isChampion ? 'text-yellow-900' :
-                            isTopThree ? 'text-green-900' :
-                            'text-gray-900'
-                          }`}>{team.team_name}</h4>
-                          
-                          <div className="space-y-1">
-                            <p className={`text-2xl font-bold ${
-                              isChampion ? 'text-yellow-600' :
-                              isTopThree ? 'text-green-600' :
-                              'text-blue-600'
-                            }`}>{team.total_score}分</p>
-                            <p className="text-sm text-gray-600">
-                              {team.matches_played}场比赛
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              {team.wins}胜 {team.losses}负
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
             </>
           )}
         </div>
@@ -412,25 +442,36 @@ export default function Home() {
 
   const renderScoreboard = () => (
     <>
-      {/* Tournament Selector */}
+      {/* Tournament Type Selector */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          选择锦标赛
+          选择比赛类型
         </label>
         <select
-          value={selectedTournament?.id || ''}
+          value={selectedTournament?.tournament_type || ''}
           onChange={(e) => {
-            const tournament = tournaments.find(t => t.id === parseInt(e.target.value))
-            setSelectedTournament(tournament || null)
+            const tournamentType = e.target.value
+            if (tournamentType === 'group_stage') {
+              // For group stage, select the first group_stage tournament
+              const groupTournament = tournaments.find(t => t.tournament_type === 'group_stage')
+              setSelectedTournament(groupTournament || null)
+            } else if (tournamentType === 'elimination') {
+              // For elimination, select the first elimination tournament
+              const eliminationTournament = tournaments.find(t => t.tournament_type === 'elimination')
+              setSelectedTournament(eliminationTournament || null)
+            } else {
+              setSelectedTournament(null)
+            }
           }}
           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
-          <option value="">请选择锦标赛</option>
-          {tournaments.map((tournament) => (
-            <option key={tournament.id} value={tournament.id}>
-              {tournament.name} - {getTournamentTypeLabel(tournament.tournament_type)}
-            </option>
-          ))}
+          <option value="">请选择比赛类型</option>
+          {tournaments.some(t => t.tournament_type === 'group_stage') && (
+            <option value="group_stage">小组赛</option>
+          )}
+          {tournaments.some(t => t.tournament_type === 'elimination') && (
+            <option value="elimination">混双淘汰赛</option>
+          )}
         </select>
       </div>
 
@@ -497,7 +538,7 @@ export default function Home() {
                 }`}
               >
                 <Target className="h-4 w-4 inline mr-2" />
-                锦标赛对阵
+                比赛战绩
               </button>
               <button
                 onClick={() => setActiveTab('calculator')}

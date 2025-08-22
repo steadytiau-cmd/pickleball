@@ -19,6 +19,7 @@ interface TeamFormData {
   player2_name: string
   team_type: 'mens' | 'womens' | 'mixed'
   group_id: number
+  tournament_type: 'group_stage' | 'mixed_double_championship'
 }
 
 export default function TeamManagement() {
@@ -28,14 +29,16 @@ export default function TeamManagement() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterGroup, setFilterGroup] = useState<number | ''>()
+  const [filterGroup, setFilterGroup] = useState<number | ''>('')
   const [filterType, setFilterType] = useState<string>('')
+  const [filterTournamentType, setFilterTournamentType] = useState<string>('')
   const [formData, setFormData] = useState<TeamFormData>({
     name: '',
     player1_name: '',
     player2_name: '',
     team_type: 'mens',
-    group_id: 1
+    group_id: 1,
+    tournament_type: 'group_stage'
   })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [showBulkEdit, setShowBulkEdit] = useState(false)
@@ -117,6 +120,7 @@ export default function TeamManagement() {
             player2_name: formData.player2_name,
             team_type: formData.team_type,
             group_id: formData.group_id,
+            tournament_type: formData.tournament_type,
             updated_at: new Date().toISOString()
           })
           .eq('id', editingTeam.id)
@@ -132,6 +136,7 @@ export default function TeamManagement() {
             player2_name: formData.player2_name,
             team_type: formData.team_type,
             group_id: formData.group_id,
+            tournament_type: formData.tournament_type,
             wins: 0,
             losses: 0,
             points_for: 0,
@@ -158,7 +163,8 @@ export default function TeamManagement() {
       player1_name: team.player1_name,
       player2_name: team.player2_name,
       team_type: team.team_type as 'mens' | 'womens' | 'mixed',
-      group_id: team.group_id
+      group_id: team.group_id || 1,
+      tournament_type: team.tournament_type
     })
     setShowAddForm(true)
   }
@@ -189,7 +195,8 @@ export default function TeamManagement() {
       player1_name: '',
       player2_name: '',
       team_type: 'mens',
-      group_id: groups.length > 0 ? groups[0].id : 1
+      group_id: groups.length > 0 ? groups[0].id : 1,
+      tournament_type: 'group_stage'
     })
     setFormErrors({})
     setEditingTeam(null)
@@ -262,14 +269,37 @@ export default function TeamManagement() {
     }
   }
 
+  const getTournamentTypeColor = (type: string) => {
+    switch (type) {
+      case 'group_stage':
+        return 'bg-green-100 text-green-800'
+      case 'mixed_double_championship':
+        return 'bg-orange-100 text-orange-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getTournamentTypeLabel = (type: string) => {
+    switch (type) {
+      case 'group_stage':
+        return '小组赛'
+      case 'mixed_double_championship':
+        return '混双淘汰赛'
+      default:
+        return type
+    }
+  }
+
   const filteredTeams = teams.filter(team => {
     const matchesSearch = team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          team.player1_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          team.player2_name.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesGroup = filterGroup === '' || team.group_id === filterGroup
     const matchesType = filterType === '' || team.team_type === filterType
+    const matchesTournamentType = filterTournamentType === '' || team.tournament_type === filterTournamentType
     
-    return matchesSearch && matchesGroup && matchesType
+    return matchesSearch && matchesGroup && matchesType && matchesTournamentType
   })
 
   if (loading) {
@@ -328,7 +358,7 @@ export default function TeamManagement() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Filters */}
         <div className="bg-white rounded-lg shadow mb-6 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
@@ -359,6 +389,15 @@ export default function TeamManagement() {
               <option value="womens">女双</option>
               <option value="mixed">混双</option>
             </select>
+            <select
+              value={filterTournamentType}
+              onChange={(e) => setFilterTournamentType(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+            >
+              <option value="">所有比赛类型</option>
+              <option value="group_stage">小组赛</option>
+              <option value="mixed_double_championship">混双淘汰赛</option>
+            </select>
           </div>
         </div>
 
@@ -381,6 +420,9 @@ export default function TeamManagement() {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     类型
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    比赛类型
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     小组
@@ -407,6 +449,11 @@ export default function TeamManagement() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTeamTypeColor(team.team_type)}`}>
                         {getTeamTypeLabel(team.team_type)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTournamentTypeColor(team.tournament_type)}`}>
+                        {getTournamentTypeLabel(team.tournament_type)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -529,6 +576,20 @@ export default function TeamManagement() {
                   <option value="mens">男双</option>
                   <option value="womens">女双</option>
                   <option value="mixed">混双</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  比赛类型
+                </label>
+                <select
+                  value={formData.tournament_type}
+                  onChange={(e) => setFormData({ ...formData, tournament_type: e.target.value as 'group_stage' | 'mixed_double_championship' })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                >
+                  <option value="group_stage">小组赛</option>
+                  <option value="mixed_double_championship">混双淘汰赛</option>
                 </select>
               </div>
 

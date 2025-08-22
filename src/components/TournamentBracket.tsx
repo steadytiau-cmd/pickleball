@@ -542,22 +542,46 @@ const TournamentBracket: React.FC = () => {
     <div className="max-w-7xl mx-auto p-6">
       {/* Tournament Selection */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">锦标赛对阵表</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">比赛战绩</h1>
         
         <div className="flex flex-wrap gap-2 mb-6">
-          {tournaments.map((tournament) => (
+          {/* Group Stage Button */}
+          {tournaments.some(t => t.tournament_type === 'group_stage') && (
             <button
-              key={tournament.id}
-              onClick={() => setSelectedTournament(tournament.id)}
+              onClick={() => {
+                const groupStageTournament = tournaments.find(t => t.tournament_type === 'group_stage');
+                if (groupStageTournament) {
+                  setSelectedTournament(groupStageTournament.id);
+                }
+              }}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                selectedTournament === tournament.id
+                selectedTournamentData?.tournament_type === 'group_stage'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              {tournament.name}
+              小组赛
             </button>
-          ))}
+          )}
+          
+          {/* Elimination Tournament Button */}
+          {tournaments.some(t => t.tournament_type === 'elimination') && (
+            <button
+              onClick={() => {
+                const eliminationTournament = tournaments.find(t => t.tournament_type === 'elimination');
+                if (eliminationTournament) {
+                  setSelectedTournament(eliminationTournament.id);
+                }
+              }}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                selectedTournamentData?.tournament_type === 'elimination'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              混双淘汰赛
+            </button>
+          )}
         </div>
 
         {selectedTournamentData && (
@@ -615,59 +639,7 @@ const TournamentBracket: React.FC = () => {
         )}
       </div>
 
-      {/* Group Standings - Only show for group stage tournaments */}
-      {selectedTournamentData?.tournament_type === 'group_stage' && (
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">小组积分榜</h2>
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">小组总积分排名</h3>
-              <p className="text-sm text-gray-600 mt-1">每场比赛获胜小组得1分，最高3分（男双+女双+混双）</p>
-            </div>
-            <div className="divide-y divide-gray-200">
-              {(() => {
-                const groupStandings = calculateGroupStandings();
-                return Object.entries(groupStandings)
-                  .sort(([,a], [,b]) => b.points - a.points)
-                  .map(([groupId, standing], index) => {
-                    const isQualified = index < 4; // Top 4 groups qualify for semi-finals
-                    return (
-                      <div key={groupId} className={`px-4 py-4 ${isQualified ? 'bg-green-50' : ''}`}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <span className={`text-lg font-bold ${isQualified ? 'text-green-600' : 'text-gray-500'}`}>
-                              #{index + 1}
-                            </span>
-                            <div>
-                              <div className="font-semibold text-lg text-gray-900">
-                                {standing.groupName}
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                男双: {standing.matches.mens.wins}胜{standing.matches.mens.losses}负 | 
-                                女双: {standing.matches.womens.wins}胜{standing.matches.womens.losses}负 | 
-                                混双: {standing.matches.mixed.wins}胜{standing.matches.mixed.losses}负
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className={`text-2xl font-bold ${isQualified ? 'text-green-600' : 'text-gray-900'}`}>
-                              {standing.points} 分
-                            </div>
-                            {isQualified && (
-                              <div className="text-xs text-green-600 font-medium mt-1">
-                                ✓ 晋级半决赛
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  });
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 };

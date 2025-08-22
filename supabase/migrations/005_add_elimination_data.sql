@@ -2,7 +2,7 @@
 
 -- Insert elimination tournaments
 INSERT INTO tournaments (name, tournament_type, team_type, start_date, end_date, is_active, created_at) VALUES
-('Mixed Doubles Championship', 'elimination', 'mixed', '2024-01-21', '2024-01-25', true, NOW()),
+('混双淘汰赛', 'elimination', 'mixed', '2024-01-21', '2024-01-25', true, NOW()),
 ('Singles Knockout Cup', 'elimination', 'mens', '2024-01-28', '2024-02-01', true, NOW());
 
 -- Insert elimination matches using existing team IDs
@@ -14,7 +14,7 @@ DECLARE
     team_ids INTEGER[];
 BEGIN
     -- Get the tournament IDs
-    SELECT id INTO mixed_tournament_id FROM tournaments WHERE name = 'Mixed Doubles Championship';
+    SELECT id INTO mixed_tournament_id FROM tournaments WHERE name = '混双淘汰赛';
     SELECT id INTO singles_tournament_id FROM tournaments WHERE name = 'Singles Knockout Cup';
     
     -- Get available team IDs (first 16 teams)
@@ -22,7 +22,7 @@ BEGIN
     
     -- Only proceed if we have enough teams
     IF array_length(team_ids, 1) >= 16 THEN
-        -- Insert matches for Mixed Doubles Championship
+        -- Insert matches for 混双淘汰赛
         INSERT INTO matches (tournament_id, team1_id, team2_id, match_status, match_round, team1_score, team2_score, scheduled_time, created_at) VALUES
         -- Quarter-finals
         (mixed_tournament_id, team_ids[1], team_ids[2], 'completed', 'quarter_final', 21, 17, '2024-01-21 09:00:00', NOW()),
