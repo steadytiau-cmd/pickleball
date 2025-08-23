@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Plus, Minus, RotateCcw, Play, Pause, ArrowLeft } from 'lucide-react'
+import { RotateCcw, Play, Pause, ArrowLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 interface GameState {
@@ -8,8 +8,8 @@ interface GameState {
   team2Score: number
   team1Games: number
   team2Games: number
-  currentServer: 1 | 2
-  serverNumber: 1 | 2
+  servingTeam: 1 | 2  // 当前发球队伍
+  serverNumber: 1 | 2  // 发球队伍中的第几个发球员（1或2）
   isGameActive: boolean
   gameHistory: Array<{
     team1Score: number
@@ -63,7 +63,7 @@ export default function PickleballScoreCalculator() {
     team2Score: 0,
     team1Games: 0,
     team2Games: 0,
-    currentServer: 1,
+    servingTeam: 1,
     serverNumber: 1,
     isGameActive: false,
     gameHistory: []
@@ -206,74 +206,115 @@ export default function PickleballScoreCalculator() {
     }
   }, [gameState.team1Games, gameState.team2Games, match, matchId, team1Name, team2Name])
 
-  const addPoint = (team: 1 | 2) => {
+  // 处理得分 - 只有发球方得分才有效
+  const handlePoint = () => {
     if (!gameState.isGameActive) return
 
     setGameState(prev => {
-      const newState = { ...prev }
+      // 匹克球规则：只有发球方可以得分
+      const newTeam1Score = prev.servingTeam === 1 ? prev.team1Score + 1 : prev.team1Score;
+      const newTeam2Score = prev.servingTeam === 2 ? prev.team2Score + 1 : prev.team2Score;
       
-      if (team === 1) {
-        newState.team1Score += 1
-      } else {
-        newState.team2Score += 1
-      }
-
-      // Check for game win
-      const team1Won = newState.team1Score >= winningScore && newState.team1Score - newState.team2Score >= 2
-      const team2Won = newState.team2Score >= winningScore && newState.team2Score - newState.team1Score >= 2
-
-      if (team1Won || team2Won) {
-        if (team1Won) newState.team1Games += 1
-        if (team2Won) newState.team2Games += 1
-
-        // Save game to history
-        newState.gameHistory.push({
-          team1Score: newState.team1Score,
-          team2Score: newState.team2Score,
-          team1Games: newState.team1Games,
-          team2Games: newState.team2Games
-        })
-
-        // Check for match win
-        if (matchFormat === 'single' || 
-            (matchFormat === 'best-of-3' && (newState.team1Games >= 2 || newState.team2Games >= 2))) {
-          newState.isGameActive = false
-        } else {
-          // Reset for next game
-          newState.team1Score = 0
-          newState.team2Score = 0
-          newState.currentServer = 1
-          newState.serverNumber = 1
-        }
-      } else {
-        // Switch server if the serving team didn't score
-        if (team !== newState.currentServer) {
-          if (newState.serverNumber === 1) {
-            newState.serverNumber = 2
+      // 检查是否有队伍获胜
+      const isWinning = (score: number, opponentScore: number) => {
+        return score >= winningScore && score - opponentScore >= 2;
+      };
+      
+      const team1Wins = isWinning(newTeam1Score, newTeam2Score);
+      const team2Wins = isWinning(newTeam2Score, newTeam1Score);
+      
+      let newState = {
+        ...prev,
+        team1Score: newTeam1Score,
+        team2Score: newTeam2Score
+      };
+      
+      // 处理游戏结束逻辑
+      if (team1Wins || team2Wins) {
+        if (matchFormat === 'single') {
+          newState = {
+            ...newState,
+            isGameActive: false,
+            team1Games: team1Wins ? 1 : 0,
+            team2Games: team2Wins ? 1 : 0
+          };
+        } else if (matchFormat === 'best-of-3') {
+          const newTeam1Games = team1Wins ? prev.team1Games + 1 : prev.team1Games;
+          const newTeam2Games = team2Wins ? prev.team2Games + 1 : prev.team2Games;
+          
+          newState = {
+            ...newState,
+            team1Games: newTeam1Games,
+            team2Games: newTeam2Games
+          };
+          
+          // 保存局数历史
+          newState.gameHistory.push({
+            team1Score: newState.team1Score,
+            team2Score: newState.team2Score,
+            team1Games: newState.team1Games,
+            team2Games: newState.team2Games
+          });
+          
+          // 检查是否有队伍赢得整场比赛
+          if (newTeam1Games >= 2 || newTeam2Games >= 2) {
+            newState.isGameActive = false;
           } else {
-            newState.currentServer = newState.currentServer === 1 ? 2 : 1
-            newState.serverNumber = 1
+            // 重置下一局
+            newState.team1Score = 0;
+            newState.team2Score = 0;
+            newState.servingTeam = 1;
+            newState.serverNumber = 1;
           }
         }
       }
+      // 发球方得分后继续发球，不需要换发球权
 
       return newState
     })
   }
 
-  const subtractPoint = (team: 1 | 2) => {
+  // 处理换发球权 - Side Out
+  const handleSideOut = () => {
     if (!gameState.isGameActive) return
 
     setGameState(prev => {
-      const newState = { ...prev }
+      // 匹克球发球权轮换规则：
+      // 1. 比赛开始时，第一个发球方（队伍1）只有1次发球机会（特殊规则）
+      // 2. 第一次Side Out后，发球权直接转给队伍2的第1发球员
+      // 3. 之后所有情况：第1发球员失误后，轮到第2发球员
+      // 4. 第2发球员失误后，发球权转给对方队伍的第1发球员
       
-      if (team === 1 && newState.team1Score > 0) {
-        newState.team1Score -= 1
-      } else if (team === 2 && newState.team2Score > 0) {
-        newState.team2Score -= 1
+      // 判断是否是比赛的真正开始（第一次发球）
+      // 只有在0-0-1的状态下才是真正的第一次发球
+      const isVeryFirstServe = prev.team1Score === 0 && prev.team2Score === 0 && 
+                               prev.servingTeam === 1 && prev.serverNumber === 1;
+      
+      if (isVeryFirstServe) {
+        // 比赛开始时的特殊规则：第一个发球方只有1次发球机会
+        // 第一次Side Out后，发球权直接转给队伍2的第1发球员
+        return {
+          ...prev,
+          servingTeam: 2,
+          serverNumber: 1
+        };
       }
-
-      return newState
+      
+      // 正常的发球权轮换逻辑
+      if (prev.serverNumber === 1) {
+        // 从第1发球员切换到第2发球员
+        return {
+          ...prev,
+          serverNumber: 2
+        };
+      } else {
+        // 从第2发球员切换到对方队伍的第1发球员
+        return {
+          ...prev,
+          servingTeam: prev.servingTeam === 1 ? 2 : 1,
+          serverNumber: 1
+        };
+      }
     })
   }
 
@@ -283,7 +324,7 @@ export default function PickleballScoreCalculator() {
       team2Score: 0,
       team1Games: 0,
       team2Games: 0,
-      currentServer: 1,
+      servingTeam: 1,
       serverNumber: 1,
       isGameActive: false,
       gameHistory: []
@@ -435,74 +476,74 @@ export default function PickleballScoreCalculator() {
 
         {/* Scoreboard */}
         <div className="p-6">
-          <div className="grid grid-cols-2 gap-8">
+          {/* 匹克球分数显示 x-x-x 格式 */}
+          <div className="text-center mb-8">
+            <div className="text-8xl font-bold text-gray-900 mb-4">
+              {gameState.team1Score} - {gameState.team2Score} - {gameState.serverNumber}
+            </div>
+            <div className="text-lg text-gray-600 mb-2">
+              {gameState.servingTeam === 1 ? team1Name : team2Name} 发球
+            </div>
+            <div className="text-sm text-gray-500">
+              第{gameState.serverNumber}发球员
+            </div>
+          </div>
+
+          {/* 队伍信息 */}
+          <div className="grid grid-cols-2 gap-8 mb-8">
             {/* Team 1 */}
             <div className="text-center">
               <div className={`p-6 rounded-lg border-2 ${
-                gameState.currentServer === 1 ? 'border-green-500 bg-green-50' : 'border-gray-200'
+                gameState.servingTeam === 1 ? 'border-green-500 bg-green-50' : 'border-gray-200'
               }`}>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">{team1Name}</h3>
-                {gameState.currentServer === 1 && (
+                {gameState.servingTeam === 1 && (
                   <div className="text-sm text-green-600 font-medium mb-2">
-                    发球方 (第{gameState.serverNumber}发球)
+                    🏓 发球方
                   </div>
                 )}
-                <div className="text-6xl font-bold text-gray-900 mb-4">{gameState.team1Score}</div>
+                <div className="text-4xl font-bold text-gray-900 mb-2">{gameState.team1Score}</div>
                 {matchFormat === 'best-of-3' && (
-                  <div className="text-lg text-gray-600 mb-4">局数: {gameState.team1Games}</div>
+                  <div className="text-lg text-gray-600">局数: {gameState.team1Games}</div>
                 )}
-                <div className="flex justify-center space-x-2">
-                  <button
-                    onClick={() => subtractPoint(1)}
-                    disabled={!gameState.isGameActive || gameState.team1Score === 0}
-                    className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Minus className="h-6 w-6" />
-                  </button>
-                  <button
-                    onClick={() => addPoint(1)}
-                    disabled={!gameState.isGameActive}
-                    className="p-2 bg-green-500 text-white rounded-full hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Plus className="h-6 w-6" />
-                  </button>
-                </div>
               </div>
             </div>
 
             {/* Team 2 */}
             <div className="text-center">
               <div className={`p-6 rounded-lg border-2 ${
-                gameState.currentServer === 2 ? 'border-green-500 bg-green-50' : 'border-gray-200'
+                gameState.servingTeam === 2 ? 'border-green-500 bg-green-50' : 'border-gray-200'
               }`}>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">{team2Name}</h3>
-                {gameState.currentServer === 2 && (
+                {gameState.servingTeam === 2 && (
                   <div className="text-sm text-green-600 font-medium mb-2">
-                    发球方 (第{gameState.serverNumber}发球)
+                    🏓 发球方
                   </div>
                 )}
-                <div className="text-6xl font-bold text-gray-900 mb-4">{gameState.team2Score}</div>
+                <div className="text-4xl font-bold text-gray-900 mb-2">{gameState.team2Score}</div>
                 {matchFormat === 'best-of-3' && (
-                  <div className="text-lg text-gray-600 mb-4">局数: {gameState.team2Games}</div>
+                  <div className="text-lg text-gray-600">局数: {gameState.team2Games}</div>
                 )}
-                <div className="flex justify-center space-x-2">
-                  <button
-                    onClick={() => subtractPoint(2)}
-                    disabled={!gameState.isGameActive || gameState.team2Score === 0}
-                    className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Minus className="h-6 w-6" />
-                  </button>
-                  <button
-                    onClick={() => addPoint(2)}
-                    disabled={!gameState.isGameActive}
-                    className="p-2 bg-green-500 text-white rounded-full hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Plus className="h-6 w-6" />
-                  </button>
-                </div>
               </div>
             </div>
+          </div>
+
+          {/* 匹克球操作按钮 */}
+          <div className="flex justify-center space-x-4 mb-8">
+            <button
+              onClick={handleSideOut}
+              disabled={!gameState.isGameActive}
+              className="px-8 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-lg"
+            >
+              Side Out
+            </button>
+            <button
+              onClick={handlePoint}
+              disabled={!gameState.isGameActive}
+              className="px-8 py-4 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-lg"
+            >
+              Point
+            </button>
           </div>
 
           {/* Reset Button */}
