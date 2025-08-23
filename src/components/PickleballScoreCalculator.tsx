@@ -71,6 +71,7 @@ export default function PickleballScoreCalculator() {
 
   const [matchFormat, setMatchFormat] = useState<'single' | 'best-of-3'>('single')
   const [winningScore, setWinningScore] = useState(21)
+  const [initialServingTeam, setInitialServingTeam] = useState<1 | 2>(1)
 
   // 获取比赛数据
   const fetchMatchData = async (id: string) => {
@@ -324,11 +325,26 @@ export default function PickleballScoreCalculator() {
       team2Score: 0,
       team1Games: 0,
       team2Games: 0,
-      servingTeam: 1,
+      servingTeam: initialServingTeam,
       serverNumber: 1,
       isGameActive: false,
       gameHistory: []
     })
+  }
+
+  // 切换开球方
+  const toggleInitialServingTeam = () => {
+    if (gameState.isGameActive) return
+    
+    const newServingTeam = initialServingTeam === 1 ? 2 : 1
+    setInitialServingTeam(newServingTeam)
+    
+    // 同时更新当前游戏状态中的发球方
+    setGameState(prev => ({
+      ...prev,
+      servingTeam: newServingTeam,
+      serverNumber: 1
+    }))
   }
 
   const toggleGame = () => {
@@ -417,7 +433,16 @@ export default function PickleballScoreCalculator() {
                 <option value={21}>21分</option>
               </select>
             </div>
-            <div className="flex items-end">
+            <div className="flex items-end space-x-2">
+              {!gameState.isGameActive && (
+                <button
+                  onClick={toggleInitialServingTeam}
+                  className="flex items-center px-4 py-2 rounded-md font-medium bg-blue-500 hover:bg-blue-600 text-white"
+                  title="切换开球方"
+                >
+                  🔄 {initialServingTeam === 1 ? team1Name : team2Name} 开球
+                </button>
+              )}
               <button
                 onClick={toggleGame}
                 className={`flex items-center px-4 py-2 rounded-md font-medium ${
