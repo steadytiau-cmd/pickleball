@@ -511,6 +511,22 @@ export default function MatchManagement() {
                       <div className="text-lg font-bold text-gray-900">
                         {match.team1_score} - {match.team2_score}
                       </div>
+                      {match.match_status === 'completed' && (() => {
+                        const winningScore = 21
+                        const team1Won = match.team1_score >= winningScore && match.team1_score - match.team2_score >= 2
+                        const team2Won = match.team2_score >= winningScore && match.team2_score - match.team1_score >= 2
+                        
+                        if (team1Won || team2Won) {
+                          const winnerName = team1Won ? match.team1?.name : match.team2?.name
+                          return (
+                            <div className="text-xs text-green-600 font-medium mt-1 flex items-center">
+                              <span className="mr-1">🏆</span>
+                              <span>获胜者: {winnerName}</span>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(match.match_status)}`}>
