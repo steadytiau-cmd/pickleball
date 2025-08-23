@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { Plus, Minus, RotateCcw, Play, Pause } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Plus, Minus, RotateCcw, Play, Pause, ArrowLeft } from 'lucide-react'
 
 interface GameState {
   team1Score: number
@@ -17,7 +18,35 @@ interface GameState {
   }>
 }
 
+interface Team {
+  id: string
+  name: string
+  team_type: string
+  player1_name: string
+  player2_name: string
+}
+
+interface Match {
+  id: string
+  tournament_id: string
+  team1_id: string
+  team2_id: string
+  team1?: Team
+  team2?: Team
+  match_round: number
+  match_status: 'scheduled' | 'in_progress' | 'completed'
+  scheduled_time: string
+  team1_score?: number
+  team2_score?: number
+  winner_id?: string
+}
+
 export default function PickleballScoreCalculator() {
+  const { matchId } = useParams<{ matchId: string }>()
+  const navigate = useNavigate()
+  
+  const [match, setMatch] = useState<Match | null>(null)
+  const [loading, setLoading] = useState(true)
   const [team1Name, setTeam1Name] = useState('队伍 1')
   const [team2Name, setTeam2Name] = useState('队伍 2')
   const [gameState, setGameState] = useState<GameState>({
@@ -33,6 +62,86 @@ export default function PickleballScoreCalculator() {
 
   const [matchFormat, setMatchFormat] = useState<'single' | 'best-of-3'>('single')
   const [winningScore, setWinningScore] = useState(21)
+
+  // 获取比赛数据
+  const fetchMatchData = async (id: string) => {
+    try {
+      const response = await fetch(`/api/matches/${id}`)
+      if (response.ok) {
+        const matchData = await response.json()
+        setMatch(matchData)
+        
+        // 设置队伍名称
+        if (matchData.team1) {
+          setTeam1Name(matchData.team1.name)
+        }
+        if (matchData.team2) {
+          setTeam2Name(matchData.team2.name)
+        }
+        
+        // 如果比赛已经有分数，加载现有分数
+        if (matchData.team1_score !== null && matchData.team2_score !== null) {
+          setGameState(prev => ({
+            ...prev,
+            team1Games: matchData.team1_score || 0,
+            team2Games: matchData.team2_score || 0
+          }))
+        }
+      }
+    } catch (error) {
+      console.error('获取比赛数据失败:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 更新比赛结果到数据库
+  const updateMatchResult = async () => {
+    if (!match || !matchId) return
+    
+    const winner = getMatchWinner()
+    if (!winner) return
+    
+    try {
+      const winnerId = winner === team1Name ? match.team1_id : match.team2_id
+      
+      const response = await fetch(`/api/matches/${matchId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          team1_score: gameState.team1Games,
+          team2_score: gameState.team2Games,
+          winner_id: winnerId,
+          match_status: 'completed'
+        })
+      })
+      
+      if (response.ok) {
+        console.log('比赛结果已更新')
+      }
+    } catch (error) {
+      console.error('更新比赛结果失败:', error)
+    }
+  }
+
+  // 加载比赛数据
+  useEffect(() => {
+    if (matchId) {
+      fetchMatchData(matchId)
+    } else {
+      setLoading(false)
+    }
+  }, [matchId])
+
+  // 当比赛结束时自动更新结果
+  useEffect(() => {
+    const winner = getMatchWinner()
+    if (winner && match && matchId) {
+      updateMatchResult()
+    }
+  }, [gameState.team1Games, gameState.team2Games, match, matchId, team1Name, team2Name])
 
   const addPoint = (team: 1 | 2) => {
     if (!gameState.isGameActive) return
@@ -138,12 +247,42 @@ export default function PickleballScoreCalculator() {
 
   const matchWinner = getMatchWinner()
 
+  // 加载状态
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto p-6">
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-green-500 to-blue-500 px-6 py-4">
-          <h2 className="text-2xl font-bold text-white text-center">匹克球计分器</h2>
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => navigate('/')}
+              className="flex items-center text-white hover:text-gray-200 transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5 mr-2" />
+              返回
+            </button>
+            <h2 className="text-2xl font-bold text-white">
+              {match ? `${match.team1?.name || 'TBD'} vs ${match.team2?.name || 'TBD'}` : '匹克球计分器'}
+            </h2>
+            <div className="w-16"></div> {/* 占位符保持居中 */}
+          </div>
+          {match && (
+            <div className="text-center mt-2">
+              <span className="text-sm text-blue-100">
+                第{match.match_round}轮 · {new Date(match.scheduled_time).toLocaleString('zh-CN')}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Settings */}
@@ -203,7 +342,8 @@ export default function PickleballScoreCalculator() {
                 value={team1Name}
                 onChange={(e) => setTeam1Name(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                disabled={gameState.isGameActive}
+                disabled={gameState.isGameActive || !!match}
+                placeholder={match ? "来自比赛数据" : "输入队伍1名称"}
               />
             </div>
             <div>
@@ -213,7 +353,8 @@ export default function PickleballScoreCalculator() {
                 value={team2Name}
                 onChange={(e) => setTeam2Name(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                disabled={gameState.isGameActive}
+                disabled={gameState.isGameActive || !!match}
+                placeholder={match ? "来自比赛数据" : "输入队伍2名称"}
               />
             </div>
           </div>

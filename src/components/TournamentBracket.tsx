@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 interface Team {
@@ -42,6 +43,7 @@ interface Group {
 }
 
 const TournamentBracket: React.FC = () => {
+  const navigate = useNavigate();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -272,6 +274,13 @@ const TournamentBracket: React.FC = () => {
     }
   };
 
+  const handleMatchClick = (match: Match) => {
+    // 只有未开始的比赛才能跳转到计分器
+    if (match.match_status === 'scheduled') {
+      navigate(`/scorer/${match.id}`);
+    }
+  };
+
   const renderEliminationBracket = () => {
     const matchesByRound = getMatchesByRound();
     const rounds = ['qualification', 'round_16', 'quarter_final', 'semi_final', 'final'];
@@ -309,11 +318,16 @@ const TournamentBracket: React.FC = () => {
                       {roundMatches.map((match, matchIndex) => (
                         <div key={match.id} className="relative">
                           {/* Match Card */}
-                          <div className={`w-56 sm:w-60 md:w-64 bg-white rounded-lg border-2 shadow-lg transition-all hover:shadow-xl ${
-                            match.match_status === 'completed' ? 'border-green-500' :
-                            match.match_status === 'in_progress' ? 'border-yellow-500' :
-                            'border-gray-300'
-                          }`}>
+                          <div 
+                            className={`w-56 sm:w-60 md:w-64 bg-white rounded-lg border-2 shadow-lg transition-all hover:shadow-xl ${
+                              match.match_status === 'completed' ? 'border-green-500' :
+                              match.match_status === 'in_progress' ? 'border-yellow-500' :
+                              'border-gray-300'
+                            } ${
+                              match.match_status === 'scheduled' ? 'cursor-pointer hover:bg-blue-50' : ''
+                            }`}
+                            onClick={() => handleMatchClick(match)}
+                          >
                             {/* Match Header */}
                             <div className="px-4 py-2 bg-gray-50 rounded-t-lg border-b">
                               <div className="flex items-center justify-between">
@@ -531,7 +545,10 @@ const TournamentBracket: React.FC = () => {
             key={match.id}
             className={`border-2 rounded-lg p-6 transition-all hover:shadow-lg ${
               getMatchStatusColor(match.match_status)
+            } ${
+              match.match_status === 'scheduled' ? 'cursor-pointer hover:bg-blue-50' : ''
             }`}
+            onClick={() => handleMatchClick(match)}
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-4">
