@@ -317,25 +317,33 @@ const TournamentBracket: React.FC = () => {
                             {/* Match Header */}
                             <div className="px-4 py-2 bg-gray-50 rounded-t-lg border-b">
                               <div className="flex items-center justify-between">
-                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                  match.match_status === 'completed' ? 'bg-green-100 text-green-800' :
-                                  match.match_status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {getMatchStatusText(match.match_status)}
-                                </span>
+                                <div className="flex items-center space-x-2">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                    match.match_status === 'completed' ? 'bg-green-100 text-green-800' :
+                                    match.match_status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {getMatchStatusText(match.match_status)}
+                                  </span>
+                                  <div className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
+                                    {getRoundLabel(match.match_round)} 男双淘汰赛
+                                  </div>
+                                </div>
                               </div>
                             </div>
                             
                             {/* Teams */}
                             <div className="p-4">
                               {/* Team 1 */}
-                              <div className={`p-3 rounded-lg mb-2 ${
-                                match.winner_id === match.team1_id ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-gray-50'
+                              <div className={`p-3 rounded-lg mb-2 relative ${
+                                match.winner_id === match.team1_id ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-amber-400 shadow-lg' : 'bg-gray-50'
                               }`}>
                                 <div className="flex items-center justify-between">
                                   <div className="flex-1">
-                                    <div className="font-semibold text-sm">
+                                    <div className={`font-semibold text-sm flex items-center ${
+                                      match.winner_id === match.team1_id ? 'text-amber-800' : ''
+                                    }`}>
+                                      {match.winner_id === match.team1_id && <span className="mr-1 text-yellow-500">👑</span>}
                                       {match.team1?.name || '待定'}
                                     </div>
                                     {match.team1 && (
@@ -344,7 +352,9 @@ const TournamentBracket: React.FC = () => {
                                       </div>
                                     )}
                                   </div>
-                                  <div className="text-xl font-bold ml-2">
+                                  <div className={`text-xl font-bold ml-2 ${
+                                    match.winner_id === match.team1_id ? 'text-amber-700' : ''
+                                  }`}>
                                     {match.team1_score || 0}
                                   </div>
                                 </div>
@@ -354,12 +364,15 @@ const TournamentBracket: React.FC = () => {
                               <div className="text-center text-xs text-gray-400 font-medium my-1">VS</div>
                               
                               {/* Team 2 */}
-                              <div className={`p-3 rounded-lg ${
-                                match.winner_id === match.team2_id ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-gray-50'
+                              <div className={`p-3 rounded-lg relative ${
+                                match.winner_id === match.team2_id ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-amber-400 shadow-lg' : 'bg-gray-50'
                               }`}>
                                 <div className="flex items-center justify-between">
                                   <div className="flex-1">
-                                    <div className="font-semibold text-sm">
+                                    <div className={`font-semibold text-sm flex items-center ${
+                                      match.winner_id === match.team2_id ? 'text-amber-800' : ''
+                                    }`}>
+                                      {match.winner_id === match.team2_id && <span className="mr-1 text-yellow-500">👑</span>}
                                       {match.team2?.name || '待定'}
                                     </div>
                                     {match.team2 && (
@@ -368,7 +381,9 @@ const TournamentBracket: React.FC = () => {
                                       </div>
                                     )}
                                   </div>
-                                  <div className="text-xl font-bold ml-2">
+                                  <div className={`text-xl font-bold ml-2 ${
+                                    match.winner_id === match.team2_id ? 'text-amber-700' : ''
+                                  }`}>
                                     {match.team2_score || 0}
                                   </div>
                                 </div>
@@ -377,8 +392,8 @@ const TournamentBracket: React.FC = () => {
                               {/* Winner Badge */}
                               {match.winner_id && (
                                 <div className="mt-3 text-center">
-                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800">
-                                    🏆 {match.winner_id === match.team1_id ? match.team1?.name : match.team2?.name}
+                                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-gradient-to-r from-yellow-400 to-amber-500 text-white shadow-md">
+                                    🏆 获胜者: {match.winner_id === match.team1_id ? match.team1?.name : match.team2?.name}
                                   </span>
                                 </div>
                               )}
@@ -457,9 +472,61 @@ const TournamentBracket: React.FC = () => {
   };
 
   const renderGroupStageMatches = () => {
+    // 按轮次分组比赛
+    const matchesByRound = filteredMatches.reduce((acc, match) => {
+      const round = match.match_round || 1;
+      if (!acc[round]) {
+        acc[round] = [];
+      }
+      acc[round].push(match);
+      return acc;
+    }, {} as Record<number, typeof filteredMatches>);
+
+    // 计算统计信息
+    const totalMatches = filteredMatches.length;
+    const completedMatches = filteredMatches.filter(m => m.match_status === 'completed').length;
+    const inProgressMatches = filteredMatches.filter(m => m.match_status === 'in_progress').length;
+    const upcomingMatches = filteredMatches.filter(m => m.match_status === 'scheduled').length;
+
     return (
-      <div className="grid gap-4">
-        {filteredMatches.map((match) => (
+      <div className="space-y-6">
+        {/* 比赛统计概览 */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+          <h4 className="text-lg font-semibold text-gray-900 mb-3">比赛概览</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{totalMatches}</div>
+              <div className="text-sm text-gray-600">总比赛数</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{completedMatches}</div>
+              <div className="text-sm text-gray-600">已完成</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-yellow-600">{inProgressMatches}</div>
+              <div className="text-sm text-gray-600">进行中</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-600">{upcomingMatches}</div>
+              <div className="text-sm text-gray-600">待开始</div>
+            </div>
+          </div>
+        </div>
+
+        {/* 按轮次显示比赛 */}
+        {Object.entries(matchesByRound)
+          .sort(([a], [b]) => Number(a) - Number(b))
+          .map(([round, matches]) => (
+            <div key={round} className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <h4 className="text-lg font-semibold text-gray-900">第 {round} 轮</h4>
+                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                  {matches.length} 场比赛
+                </span>
+              </div>
+              
+              <div className="grid gap-4">
+                {matches.map((match) => (
           <div
             key={match.id}
             className={`border-2 rounded-lg p-6 transition-all hover:shadow-lg ${
@@ -468,7 +535,9 @@ const TournamentBracket: React.FC = () => {
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-4">
-
+                <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                  第{match.match_round}轮 男双资格赛
+                </div>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                   match.match_status === 'completed' ? 'bg-green-200 text-green-800' :
                   match.match_status === 'in_progress' ? 'bg-yellow-200 text-yellow-800' :
@@ -484,10 +553,13 @@ const TournamentBracket: React.FC = () => {
 
             <div className="flex items-center justify-between">
               {/* Team 1 */}
-              <div className={`flex-1 text-center p-4 rounded-lg ${
-                match.winner_id === match.team1_id ? 'bg-green-200' : 'bg-white'
+              <div className={`flex-1 text-center p-4 rounded-lg relative ${
+                match.winner_id === match.team1_id ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-amber-400 shadow-lg' : 'bg-white'
               }`}>
-                <div className="font-semibold text-lg text-gray-900">
+                <div className={`font-semibold text-lg text-gray-900 flex items-center justify-center ${
+                  match.winner_id === match.team1_id ? 'text-amber-800' : ''
+                }`}>
+                  {match.winner_id === match.team1_id && <span className="mr-1 text-yellow-500">👑</span>}
                   {match.team1 ? match.team1.name : 'TBD'}
                 </div>
                 {match.team1 && (
@@ -501,7 +573,9 @@ const TournamentBracket: React.FC = () => {
                   </>
                 )}
                 {match.match_status === 'completed' && (
-                  <div className="text-2xl font-bold mt-2 text-gray-900">
+                  <div className={`text-2xl font-bold mt-2 ${
+                    match.winner_id === match.team1_id ? 'text-amber-700' : 'text-gray-900'
+                  }`}>
                     {match.team1_score}
                   </div>
                 )}
@@ -513,10 +587,13 @@ const TournamentBracket: React.FC = () => {
               </div>
 
               {/* Team 2 */}
-              <div className={`flex-1 text-center p-4 rounded-lg ${
-                match.winner_id === match.team2_id ? 'bg-green-200' : 'bg-white'
+              <div className={`flex-1 text-center p-4 rounded-lg relative ${
+                match.winner_id === match.team2_id ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-amber-400 shadow-lg' : 'bg-white'
               }`}>
-                <div className="font-semibold text-lg text-gray-900">
+                <div className={`font-semibold text-lg text-gray-900 flex items-center justify-center ${
+                  match.winner_id === match.team2_id ? 'text-amber-800' : ''
+                }`}>
+                  {match.winner_id === match.team2_id && <span className="mr-1 text-yellow-500">👑</span>}
                   {match.team2 ? match.team2.name : 'TBD'}
                 </div>
                 {match.team2 && (
@@ -530,7 +607,9 @@ const TournamentBracket: React.FC = () => {
                   </>
                 )}
                 {match.match_status === 'completed' && (
-                  <div className="text-2xl font-bold mt-2 text-gray-900">
+                  <div className={`text-2xl font-bold mt-2 ${
+                    match.winner_id === match.team2_id ? 'text-amber-700' : 'text-gray-900'
+                  }`}>
                     {match.team2_score}
                   </div>
                 )}
@@ -539,7 +618,7 @@ const TournamentBracket: React.FC = () => {
 
             {match.winner_id && (
               <div className="mt-4 text-center">
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-gradient-to-r from-yellow-400 to-amber-500 text-white shadow-md">
                   🏆 获胜者: {match.winner_id === match.team1_id 
                     ? (match.team1 ? match.team1.name : 'Team 1')
                     : (match.team2 ? match.team2.name : 'Team 2')
@@ -549,6 +628,9 @@ const TournamentBracket: React.FC = () => {
             )}
           </div>
         ))}
+              </div>
+            </div>
+          ))}
       </div>
     );
   };
