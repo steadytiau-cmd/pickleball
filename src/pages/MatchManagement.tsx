@@ -12,8 +12,7 @@ import {
   Play,
   Pause,
   CheckCircle,
-  Clock,
-  MapPin
+  Clock
 } from 'lucide-react'
 
 interface MatchFormData {
@@ -21,7 +20,6 @@ interface MatchFormData {
   team2_id: number
   tournament_id: number
   match_round: string
-  court_number: number
 }
 
 interface ScoreUpdateData {
@@ -45,8 +43,7 @@ export default function MatchManagement() {
     team1_id: 0,
     team2_id: 0,
     tournament_id: 0,
-    match_round: 'qualification',
-    court_number: 1
+    match_round: 'qualification'
   })
   const [scoreData, setScoreData] = useState<ScoreUpdateData>({
     team1_score: 0,
@@ -146,7 +143,6 @@ export default function MatchManagement() {
             team2_id: formData.team2_id,
             tournament_id: formData.tournament_id,
             match_round: formData.match_round,
-            court_number: formData.court_number,
             updated_at: new Date().toISOString()
           })
           .eq('id', editingMatch.id)
@@ -161,7 +157,6 @@ export default function MatchManagement() {
             team2_id: formData.team2_id,
             tournament_id: formData.tournament_id,
             match_round: formData.match_round,
-            court_number: formData.court_number,
             team1_score: 0,
             team2_score: 0,
             match_status: 'scheduled'
@@ -241,8 +236,7 @@ export default function MatchManagement() {
       team1_id: match.team1_id,
       team2_id: match.team2_id,
       tournament_id: match.tournament_id,
-      match_round: match.match_round,
-      court_number: match.court_number || 1
+      match_round: match.match_round
     })
     setShowAddForm(true)
   }
@@ -282,8 +276,7 @@ export default function MatchManagement() {
       team1_id: teams.length > 0 ? teams[0].id : 0,
       team2_id: teams.length > 1 ? teams[1].id : 0,
       tournament_id: tournaments.length > 0 ? tournaments[0].id : 0,
-      match_round: 'qualification',
-      court_number: 1
+      match_round: 'qualification'
     })
     setFormErrors({})
     setEditingMatch(null)
@@ -309,31 +302,39 @@ export default function MatchManagement() {
 
       // Update team records if match is completed
       if (status === 'completed') {
-        const winner_id = team1Score > team2Score ? match.team1_id : match.team2_id
-        const loser_id = team1Score > team2Score ? match.team2_id : match.team1_id
-
-        // Update winner
-        await supabase.rpc('increment_team_wins', { team_id: winner_id })
+        // 使用匹克球规则判定胜负：需要达到获胜分数（通常21分）且领先对手至少2分
+        const winningScore = 21 // 可以根据需要调整为11、15或21
+        const team1Won = team1Score >= winningScore && team1Score - team2Score >= 2
+        const team2Won = team2Score >= winningScore && team2Score - team1Score >= 2
         
-        // Update loser
-        await supabase.rpc('increment_team_losses', { team_id: loser_id })
+        // 只有在真正满足获胜条件时才更新胜负记录
+        if (team1Won || team2Won) {
+          const winner_id = team1Won ? match.team1_id : match.team2_id
+          const loser_id = team1Won ? match.team2_id : match.team1_id
 
-        // Update points
-        await supabase
-          .from('teams')
-          .update({ 
-            points_for: (match.team1?.points_for || 0) + team1Score,
-            points_against: (match.team1?.points_against || 0) + team2Score
-          })
-          .eq('id', match.team1_id)
+          // Update winner
+          await supabase.rpc('increment_team_wins', { team_id: winner_id })
+          
+          // Update loser
+          await supabase.rpc('increment_team_losses', { team_id: loser_id })
 
-        await supabase
-          .from('teams')
-          .update({ 
-            points_for: (match.team2?.points_for || 0) + team2Score,
-            points_against: (match.team2?.points_against || 0) + team1Score
-          })
-          .eq('id', match.team2_id)
+          // Update points
+          await supabase
+            .from('teams')
+            .update({ 
+              points_for: (match.team1?.points_for || 0) + team1Score,
+              points_against: (match.team1?.points_against || 0) + team2Score
+            })
+            .eq('id', match.team1_id)
+
+          await supabase
+            .from('teams')
+            .update({ 
+              points_for: (match.team2?.points_for || 0) + team2Score,
+              points_against: (match.team2?.points_against || 0) + team1Score
+            })
+            .eq('id', match.team2_id)
+        }
       }
 
       fetchData()
@@ -522,12 +523,7 @@ export default function MatchManagement() {
                         {match.scheduled_time && (
                           <div>{new Date(match.scheduled_time).toLocaleString('zh-CN')}</div>
                         )}
-                        {match.court_number && (
-                          <div className="flex items-center text-gray-500">
-                            <MapPin className="h-3 w-3 mr-1" />
-                            场地 {match.court_number}
-                          </div>
-                        )}
+
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -652,20 +648,6 @@ export default function MatchManagement() {
                   ))}
                 </select>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  场地号
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={formData.court_number}
-                  onChange={(e) => setFormData({ ...formData, court_number: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                />
-              </div>
-
 
 
               <div className="flex space-x-3 pt-4">
@@ -854,7 +836,7 @@ function QuickScoreCard({ match, onScoreUpdate }: QuickScoreCardProps) {
     <div className="border rounded-lg p-4 bg-gray-50">
       <div className="flex items-center justify-between mb-4">
         <div className="text-sm text-gray-600">
-          {match.tournament?.name} - {match.match_round} | 场地 {match.court_number}
+          {match.tournament?.name} - {match.match_round}
         </div>
         <div className={`px-2 py-1 rounded text-xs font-medium ${
           status === 'completed' ? 'bg-green-100 text-green-800' :

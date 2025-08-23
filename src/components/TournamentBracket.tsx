@@ -223,7 +223,12 @@ const TournamentBracket: React.FC = () => {
           const tournament = tournaments.find(t => t.id === match.tournament_id);
           return tournament && tournament.tournament_type === 'group_stage';
         })
-      : matches.filter(match => match.tournament_id === Number(selectedTournament))
+      : selectedTournament === 'elimination_all'
+        ? matches.filter(match => {
+            const tournament = tournaments.find(t => t.id === match.tournament_id);
+            return tournament && tournament.tournament_type === 'elimination';
+          })
+        : matches.filter(match => match.tournament_id === Number(selectedTournament))
     : [];
 
   const selectedTournamentData = selectedTournament === 'group_stage_all'
@@ -232,6 +237,14 @@ const TournamentBracket: React.FC = () => {
         name: '小组赛',
         tournament_type: 'group_stage',
         is_active: tournaments.some(t => t.tournament_type === 'group_stage' && t.is_active),
+        team_type: null
+      }
+    : selectedTournament === 'elimination_all'
+    ? {
+        id: 'elimination_all',
+        name: '混双淘汰赛',
+        tournament_type: 'elimination',
+        is_active: tournaments.some(t => t.tournament_type === 'elimination' && t.is_active),
         team_type: null
       }
     : tournaments.find(t => t.id === selectedTournament);
@@ -311,7 +324,6 @@ const TournamentBracket: React.FC = () => {
                                 }`}>
                                   {getMatchStatusText(match.match_status)}
                                 </span>
-                                <span className="text-xs text-gray-500">场地 {match.court_number}</span>
                               </div>
                             </div>
                             
@@ -456,9 +468,7 @@ const TournamentBracket: React.FC = () => {
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-4">
-                <span className="text-sm font-medium text-gray-600">
-                  场地 {match.court_number}
-                </span>
+
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                   match.match_status === 'completed' ? 'bg-green-200 text-green-800' :
                   match.match_status === 'in_progress' ? 'bg-yellow-200 text-yellow-800' :
@@ -578,23 +588,25 @@ const TournamentBracket: React.FC = () => {
             </button>
           )}
           
-          {/* Elimination Tournament Buttons */}
-          {tournaments
-            .filter(t => t.tournament_type === 'elimination')
-            .map(tournament => (
-              <button
-                key={tournament.id}
-                onClick={() => setSelectedTournament(tournament.id)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  selectedTournament === tournament.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                混双淘汰赛
-              </button>
-            ))
-          }
+          {/* Elimination Tournament Button - Single button for all elimination tournaments */}
+          {tournaments.some(t => t.tournament_type === 'elimination') && (
+            <button
+              onClick={() => {
+                // Select the first elimination tournament or create a virtual selection
+                const eliminationTournament = tournaments.find(t => t.tournament_type === 'elimination');
+                if (eliminationTournament) {
+                  setSelectedTournament('elimination_all');
+                }
+              }}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                selectedTournament === 'elimination_all'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              混双淘汰赛
+            </button>
+          )}
         </div>
 
         {selectedTournamentData && (

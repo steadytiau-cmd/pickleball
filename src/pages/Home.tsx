@@ -202,17 +202,34 @@ export default function Home() {
   }
 
   const renderCumulativeScoreboard = () => {
-    // Calculate total scores for each group and sort by highest score
+    // Calculate total scores and wins for each group
     const groupTotalScores = groups.map(group => {
       const groupScores = cumulativeScores
         .filter(score => score.group_id === group.id)
       const totalScore = groupScores.reduce((total, score) => total + score.total_score, 0)
+      
+      // Calculate total wins for this group
+      const groupTeams = teams.filter(team => team.group_id === group.id)
+      const totalWins = matches
+        .filter(match => 
+          match.match_status === 'completed' && 
+          match.winner_id && 
+          groupTeams.some(team => team.id === match.winner_id)
+        ).length
+      
       return {
         ...group,
         totalScore,
+        totalWins,
         hasTeams: groupScores.length > 0
       }
-    }).sort((a, b) => b.totalScore - a.totalScore)
+    }).sort((a, b) => {
+      // Sort by wins first, then by total score if wins are equal
+      if (a.totalWins !== b.totalWins) {
+        return b.totalWins - a.totalWins
+      }
+      return b.totalScore - a.totalScore
+    })
 
     const getRankIcon = (rank: number) => {
       switch (rank) {
@@ -291,11 +308,16 @@ export default function Home() {
                         <div className="text-right">
                           {group.hasTeams ? (
                             <>
-                              <div className={`text-4xl font-bold ${getScoreColor(rank)} animate-pulse`}>
-                                {group.totalScore}分
+                              <div className="flex flex-col items-end space-y-2">
+                                <div className={`text-3xl font-bold ${getScoreColor(rank)} animate-pulse`}>
+                                  {group.totalWins}胜
+                                </div>
+                                <div className={`text-2xl font-semibold ${getScoreColor(rank)}`}>
+                                  {group.totalScore}分
+                                </div>
                               </div>
                               <div className="text-sm text-gray-500 mt-1">
-                                🔥 累计总分
+                                🏆 胜场 · 🔥 总分
                               </div>
                             </>
                           ) : (
@@ -325,10 +347,16 @@ export default function Home() {
             </div>
             
             {/* Competition Stats */}
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-gradient-to-r from-green-100 to-green-200 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-green-700">{groups.length}</div>
                 <div className="text-sm text-green-600">参赛小组</div>
+              </div>
+              <div className="bg-gradient-to-r from-yellow-100 to-yellow-200 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-yellow-700">
+                  {groupTotalScores.reduce((sum, group) => sum + group.totalWins, 0)}
+                </div>
+                <div className="text-sm text-yellow-600">总胜场数</div>
               </div>
               <div className="bg-gradient-to-r from-blue-100 to-blue-200 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-blue-700">
@@ -338,9 +366,9 @@ export default function Home() {
               </div>
               <div className="bg-gradient-to-r from-purple-100 to-purple-200 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-purple-700">
-                  {groupTotalScores[0]?.totalScore || 0}
+                  {groupTotalScores[0]?.totalWins || 0}胜 · {groupTotalScores[0]?.totalScore || 0}分
                 </div>
-                <div className="text-sm text-purple-600">最高分数</div>
+                <div className="text-sm text-purple-600">第一名成绩</div>
               </div>
             </div>
           </div>
@@ -444,7 +472,7 @@ export default function Home() {
                                   }`}>
                                     {getMatchStatusText(match.match_status)}
                                   </span>
-                                  <span className="text-xs text-gray-500">场地 {match.court_number}</span>
+
                                 </div>
                               </div>
                               
@@ -549,32 +577,41 @@ export default function Home() {
         <label className="block text-sm font-medium text-gray-700 mb-2">
           选择比赛类型
         </label>
-        <select
-          value={selectedTournament?.tournament_type || ''}
-          onChange={(e) => {
-            const tournamentType = e.target.value
-            if (tournamentType === 'group_stage') {
-              // For group stage, select the first group_stage tournament
-              const groupTournament = tournaments.find(t => t.tournament_type === 'group_stage')
-              setSelectedTournament(groupTournament || null)
-            } else if (tournamentType === 'elimination') {
-              // For elimination, select the first elimination tournament
-              const eliminationTournament = tournaments.find(t => t.tournament_type === 'elimination')
-              setSelectedTournament(eliminationTournament || null)
-            } else {
-              setSelectedTournament(null)
-            }
-          }}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="">请选择比赛类型</option>
+        <div className="flex flex-wrap gap-2">
+          {/* Group Stage Button */}
           {tournaments.some(t => t.tournament_type === 'group_stage') && (
-            <option value="group_stage">小组赛</option>
+            <button
+              onClick={() => {
+                const groupTournament = tournaments.find(t => t.tournament_type === 'group_stage')
+                setSelectedTournament(groupTournament || null)
+              }}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                selectedTournament?.tournament_type === 'group_stage'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              小组赛
+            </button>
           )}
+          
+          {/* Elimination Tournament Button */}
           {tournaments.some(t => t.tournament_type === 'elimination') && (
-            <option value="elimination">混双淘汰赛</option>
+            <button
+              onClick={() => {
+                const eliminationTournament = tournaments.find(t => t.tournament_type === 'elimination')
+                setSelectedTournament(eliminationTournament || null)
+              }}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                selectedTournament?.tournament_type === 'elimination'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              混双淘汰赛
+            </button>
           )}
-        </select>
+        </div>
       </div>
 
       {selectedTournament && (
