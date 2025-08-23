@@ -180,12 +180,28 @@ export default function MatchManagement() {
     if (!selectedMatch) return
 
     try {
+      // 计算获胜者ID（如果比赛完成且满足获胜条件）
+      let winner_id = null
+      if (scoreData.match_status === 'completed') {
+        // 使用匹克球规则判定胜负：需要达到获胜分数（通常21分）且领先对手至少2分
+        const winningScore = 21 // 可以根据需要调整为11、15或21
+        const team1Won = scoreData.team1_score >= winningScore && scoreData.team1_score - scoreData.team2_score >= 2
+        const team2Won = scoreData.team2_score >= winningScore && scoreData.team2_score - scoreData.team1_score >= 2
+        
+        if (team1Won) {
+          winner_id = selectedMatch.team1_id
+        } else if (team2Won) {
+          winner_id = selectedMatch.team2_id
+        }
+      }
+
       const { error } = await supabase
         .from('matches')
         .update({
           team1_score: scoreData.team1_score,
           team2_score: scoreData.team2_score,
           match_status: scoreData.match_status,
+          winner_id: winner_id,
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedMatch.id)
@@ -193,9 +209,8 @@ export default function MatchManagement() {
       if (error) throw error
 
       // Update team records if match is completed
-      if (scoreData.match_status === 'completed') {
-        const winner_id = scoreData.team1_score > scoreData.team2_score ? selectedMatch.team1_id : selectedMatch.team2_id
-        const loser_id = scoreData.team1_score > scoreData.team2_score ? selectedMatch.team2_id : selectedMatch.team1_id
+      if (scoreData.match_status === 'completed' && winner_id) {
+        const loser_id = winner_id === selectedMatch.team1_id ? selectedMatch.team2_id : selectedMatch.team1_id
 
         // Update winner
         await supabase.rpc('increment_team_wins', { team_id: winner_id })
@@ -207,16 +222,16 @@ export default function MatchManagement() {
         await supabase
           .from('teams')
           .update({ 
-            points_for: selectedMatch.team1?.points_for + scoreData.team1_score,
-            points_against: selectedMatch.team1?.points_against + scoreData.team2_score
+            points_for: (selectedMatch.team1?.points_for || 0) + scoreData.team1_score,
+            points_against: (selectedMatch.team1?.points_against || 0) + scoreData.team2_score
           })
           .eq('id', selectedMatch.team1_id)
 
         await supabase
           .from('teams')
           .update({ 
-            points_for: selectedMatch.team2?.points_for + scoreData.team2_score,
-            points_against: selectedMatch.team2?.points_against + scoreData.team1_score
+            points_for: (selectedMatch.team2?.points_for || 0) + scoreData.team2_score,
+            points_against: (selectedMatch.team2?.points_against || 0) + scoreData.team1_score
           })
           .eq('id', selectedMatch.team2_id)
       }
@@ -288,12 +303,28 @@ export default function MatchManagement() {
       const match = matches.find(m => m.id === matchId)
       if (!match) return
 
+      // 计算获胜者ID（如果比赛完成且满足获胜条件）
+      let winner_id = null
+      if (status === 'completed') {
+        // 使用匹克球规则判定胜负：需要达到获胜分数（通常21分）且领先对手至少2分
+        const winningScore = 21 // 可以根据需要调整为11、15或21
+        const team1Won = team1Score >= winningScore && team1Score - team2Score >= 2
+        const team2Won = team2Score >= winningScore && team2Score - team1Score >= 2
+        
+        if (team1Won) {
+          winner_id = match.team1_id
+        } else if (team2Won) {
+          winner_id = match.team2_id
+        }
+      }
+
       const { error } = await supabase
         .from('matches')
         .update({
           team1_score: team1Score,
           team2_score: team2Score,
           match_status: status,
+          winner_id: winner_id,
           updated_at: new Date().toISOString()
         })
         .eq('id', matchId)
@@ -301,40 +332,31 @@ export default function MatchManagement() {
       if (error) throw error
 
       // Update team records if match is completed
-      if (status === 'completed') {
-        // 使用匹克球规则判定胜负：需要达到获胜分数（通常21分）且领先对手至少2分
-        const winningScore = 21 // 可以根据需要调整为11、15或21
-        const team1Won = team1Score >= winningScore && team1Score - team2Score >= 2
-        const team2Won = team2Score >= winningScore && team2Score - team1Score >= 2
+      if (status === 'completed' && winner_id) {
+        const loser_id = winner_id === match.team1_id ? match.team2_id : match.team1_id
+
+        // Update winner
+        await supabase.rpc('increment_team_wins', { team_id: winner_id })
         
-        // 只有在真正满足获胜条件时才更新胜负记录
-        if (team1Won || team2Won) {
-          const winner_id = team1Won ? match.team1_id : match.team2_id
-          const loser_id = team1Won ? match.team2_id : match.team1_id
+        // Update loser
+        await supabase.rpc('increment_team_losses', { team_id: loser_id })
 
-          // Update winner
-          await supabase.rpc('increment_team_wins', { team_id: winner_id })
-          
-          // Update loser
-          await supabase.rpc('increment_team_losses', { team_id: loser_id })
+        // Update points
+        await supabase
+          .from('teams')
+          .update({ 
+            points_for: (match.team1?.points_for || 0) + team1Score,
+            points_against: (match.team1?.points_against || 0) + team2Score
+          })
+          .eq('id', match.team1_id)
 
-          // Update points
-          await supabase
-            .from('teams')
-            .update({ 
-              points_for: (match.team1?.points_for || 0) + team1Score,
-              points_against: (match.team1?.points_against || 0) + team2Score
-            })
-            .eq('id', match.team1_id)
-
-          await supabase
-            .from('teams')
-            .update({ 
-              points_for: (match.team2?.points_for || 0) + team2Score,
-              points_against: (match.team2?.points_against || 0) + team1Score
-            })
-            .eq('id', match.team2_id)
-        }
+        await supabase
+          .from('teams')
+          .update({ 
+            points_for: (match.team2?.points_for || 0) + team2Score,
+            points_against: (match.team2?.points_against || 0) + team1Score
+          })
+          .eq('id', match.team2_id)
       }
 
       fetchData()
@@ -630,7 +652,7 @@ export default function MatchManagement() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                 >
                   <option value="qualification">资格赛</option>
-                  <option value="semifinal">半决赛</option>
+                  <option value="semi_final">半决赛</option>
                   <option value="final">决赛</option>
                 </select>
               </div>

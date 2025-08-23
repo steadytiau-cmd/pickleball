@@ -342,7 +342,7 @@ export default function TournamentManagement() {
             tournament_id: tournament.id,
             team1_id: tournamentTeams[i].id,
             team2_id: tournamentTeams[i + 1].id,
-            match_round: teamsCount <= 4 ? 'semifinal' : 'qualification',
+            match_round: teamsCount <= 4 ? 'semi_final' : 'qualification',
             match_status: 'scheduled',
             team1_score: 0,
             team2_score: 0
