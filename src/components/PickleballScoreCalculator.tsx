@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Plus, Minus, RotateCcw, Play, Pause, ArrowLeft } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
 interface GameState {
   team1Score: number
@@ -19,26 +20,34 @@ interface GameState {
 }
 
 interface Team {
-  id: string
+  id: number
   name: string
-  team_type: string
+  team_type: 'mens' | 'womens' | 'mixed'
   player1_name: string
   player2_name: string
+  wins: number
+  losses: number
+  points_for: number
+  points_against: number
 }
 
 interface Match {
-  id: string
-  tournament_id: string
-  team1_id: string
-  team2_id: string
+  id: number
+  tournament_id?: number
+  team1_id?: number
+  team2_id?: number
   team1?: Team
   team2?: Team
-  match_round: number
-  match_status: 'scheduled' | 'in_progress' | 'completed'
-  scheduled_time: string
-  team1_score?: number
-  team2_score?: number
-  winner_id?: string
+  match_round?: 'qualification' | 'semi_final' | 'final' | 'round_16' | 'quarter_final'
+  match_status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+  scheduled_time?: string
+  team1_score: number
+  team2_score: number
+  winner_id?: number
+  actual_start_time?: string
+  actual_end_time?: string
+  created_at: string
+  updated_at: string
 }
 
 export default function PickleballScoreCalculator() {
@@ -66,9 +75,29 @@ export default function PickleballScoreCalculator() {
   // 获取比赛数据
   const fetchMatchData = async (id: string) => {
     try {
-      const response = await fetch(`/api/matches/${id}`)
-      if (response.ok) {
-        const matchData = await response.json()
+      const matchIdNum = parseInt(id)
+      if (isNaN(matchIdNum)) {
+        console.error('无效的比赛ID:', id)
+        return
+      }
+      
+      const { data: matchData, error } = await supabase
+        .from('matches')
+        .select(`
+          *,
+          team1:teams!matches_team1_id_fkey(*),
+          team2:teams!matches_team2_id_fkey(*),
+          tournament:tournaments(*)
+        `)
+        .eq('id', matchIdNum)
+        .single()
+      
+      if (error) {
+        console.error('获取比赛数据失败:', error)
+        return
+      }
+      
+      if (matchData) {
         setMatch(matchData)
         
         // 设置队伍名称
@@ -105,21 +134,55 @@ export default function PickleballScoreCalculator() {
     try {
       const winnerId = winner === team1Name ? match.team1_id : match.team2_id
       
-      const response = await fetch(`/api/matches/${matchId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const matchIdNum = parseInt(matchId)
+      if (isNaN(matchIdNum)) {
+        console.error('无效的比赛ID:', matchId)
+        return
+      }
+      
+      const { error } = await supabase
+        .from('matches')
+        .update({
           team1_score: gameState.team1Games,
           team2_score: gameState.team2Games,
           winner_id: winnerId,
-          match_status: 'completed'
+          match_status: 'completed',
+          actual_end_time: new Date().toISOString()
         })
-      })
+        .eq('id', matchIdNum)
       
-      if (response.ok) {
+      if (error) {
+        console.error('更新比赛结果失败:', error)
+      } else {
         console.log('比赛结果已更新')
+        
+        // 更新队伍胜负记录
+        const loser_id = winnerId === match.team1_id ? match.team2_id : match.team1_id
+        
+        // 更新获胜队伍
+        await supabase.rpc('increment_team_wins', { team_id: winnerId })
+        
+        // 更新失败队伍
+        await supabase.rpc('increment_team_losses', { team_id: loser_id })
+        
+        // 更新积分
+        if (match.team1_id && match.team2_id) {
+          await supabase
+            .from('teams')
+            .update({ 
+              points_for: (match.team1?.points_for || 0) + gameState.team1Games,
+              points_against: (match.team1?.points_against || 0) + gameState.team2Games
+            })
+            .eq('id', match.team1_id)
+          
+          await supabase
+            .from('teams')
+            .update({ 
+              points_for: (match.team2?.points_for || 0) + gameState.team2Games,
+              points_against: (match.team2?.points_against || 0) + gameState.team1Games
+            })
+            .eq('id', match.team2_id)
+        }
       }
     } catch (error) {
       console.error('更新比赛结果失败:', error)
