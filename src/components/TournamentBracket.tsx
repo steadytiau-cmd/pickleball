@@ -242,7 +242,7 @@ const TournamentBracket: React.FC = () => {
     : selectedTournament === 'elimination_all'
     ? {
         id: 'elimination_all',
-        name: '混双淘汰赛',
+        name: '淘汰赛',
         tournament_type: 'elimination',
         is_active: tournaments.some(t => t.tournament_type === 'elimination' && t.is_active),
         team_type: null
@@ -326,7 +326,7 @@ const TournamentBracket: React.FC = () => {
                                     {getMatchStatusText(match.match_status)}
                                   </span>
                                   <div className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
-                                    {getRoundLabel(match.match_round)} 男双淘汰赛
+                                    {getRoundLabel(match.match_round)} · {match.team1 ? getTeamTypeLabel(match.team1.team_type) : match.team2 ? getTeamTypeLabel(match.team2.team_type) : ''}
                                   </div>
                                 </div>
                               </div>
@@ -519,7 +519,7 @@ const TournamentBracket: React.FC = () => {
           .map(([round, matches]) => (
             <div key={round} className="space-y-4">
               <div className="flex items-center space-x-2">
-                <h4 className="text-lg font-semibold text-gray-900">第 {round} 轮</h4>
+                <h4 className="text-lg font-semibold text-gray-900">{getRoundLabel(round)}</h4>
                 <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
                   {matches.length} 场比赛
                 </span>
@@ -536,7 +536,7 @@ const TournamentBracket: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-4">
                 <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                  第{match.match_round}轮 男双资格赛
+                  {getRoundLabel(match.match_round)} · {match.team1 ? getTeamTypeLabel(match.team1.team_type) : match.team2 ? getTeamTypeLabel(match.team2.team_type) : ''}
                 </div>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                   match.match_status === 'completed' ? 'bg-green-200 text-green-800' :
@@ -686,7 +686,7 @@ const TournamentBracket: React.FC = () => {
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              混双淘汰赛
+              淘汰赛
             </button>
           )}
         </div>
