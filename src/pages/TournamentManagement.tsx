@@ -719,7 +719,10 @@ export default function TournamentManagement() {
       {showEightTeamDraw && selectedTournamentForDraw && (
         <EightTeamDraw
           tournamentId={selectedTournamentForDraw.id}
-          teams={teams.filter(team => team.is_active)}
+          teams={teams.filter(team => 
+            team.is_active && 
+            team.tournament_type === 'mixed_double_championship'
+          )}
           onSave={handleDrawSave}
           onCancel={() => {
             setShowEightTeamDraw(false)
