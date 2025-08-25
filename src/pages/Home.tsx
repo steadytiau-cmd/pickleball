@@ -216,7 +216,7 @@ export default function Home() {
         .filter(match => 
           match.match_status === 'completed' && 
           match.winner_id && 
-          match.tournament_type === 'group_stage' &&
+          match.tournament?.tournament_type === 'group_stage' &&
           groupTeams.some(team => team.id === match.winner_id)
         ).length
       
