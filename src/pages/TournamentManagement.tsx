@@ -407,39 +407,8 @@ export default function TournamentManagement() {
         }
       })
 
-      // Create placeholder matches for semi-finals and final
-      // Semi-final 1: Winner of QF1 vs Winner of QF2
-      matchesToCreate.push({
-        tournament_id: selectedTournamentForDraw.id,
-        team1_id: null,
-        team2_id: null,
-        match_round: 'semi_final',
-        match_status: 'pending',
-        team1_score: 0,
-        team2_score: 0
-      })
-
-      // Semi-final 2: Winner of QF3 vs Winner of QF4
-      matchesToCreate.push({
-        tournament_id: selectedTournamentForDraw.id,
-        team1_id: null,
-        team2_id: null,
-        match_round: 'semi_final',
-        match_status: 'pending',
-        team1_score: 0,
-        team2_score: 0
-      })
-
-      // Final: Winner of SF1 vs Winner of SF2
-      matchesToCreate.push({
-        tournament_id: selectedTournamentForDraw.id,
-        team1_id: null,
-        team2_id: null,
-        match_round: 'final',
-        match_status: 'pending',
-        team1_score: 0,
-        team2_score: 0
-      })
+      // Note: Semi-finals and final matches will be created automatically
+      // when quarter-final matches are completed and winners are determined
 
       const { error } = await supabase
         .from('matches')
@@ -717,7 +686,7 @@ export default function TournamentManagement() {
           tournamentId={selectedTournamentForDraw.id}
           teams={teams.filter(team => 
             team.is_active && 
-            team.tournament_type === 'mixed_double_championship'
+            team.team_type === 'mixed'
           )}
           onSave={handleDrawSave}
           onCancel={() => {
