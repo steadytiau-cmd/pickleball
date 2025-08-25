@@ -142,11 +142,22 @@ export default function PickleballScoreCalculator() {
         return
       }
       
+      // 获取最终比分 - 对于单局比赛使用当前分数，对于三局两胜使用决胜局分数
+      let finalTeam1Score = gameState.team1Score;
+      let finalTeam2Score = gameState.team2Score;
+      
+      // 如果是三局两胜制且有历史记录，使用最后一局的分数
+      if (matchFormat === 'best-of-3' && gameState.gameHistory.length > 0) {
+        const lastGame = gameState.gameHistory[gameState.gameHistory.length - 1];
+        finalTeam1Score = lastGame.team1Score;
+        finalTeam2Score = lastGame.team2Score;
+      }
+      
       const { error } = await supabase
         .from('matches')
         .update({
-          team1_score: gameState.team1Games,
-          team2_score: gameState.team2Games,
+          team1_score: finalTeam1Score,
+          team2_score: finalTeam2Score,
           winner_id: winnerId,
           match_status: 'completed',
           actual_end_time: new Date().toISOString()
@@ -172,16 +183,16 @@ export default function PickleballScoreCalculator() {
           await supabase
             .from('teams')
             .update({ 
-              points_for: (match.team1?.points_for || 0) + gameState.team1Games,
-              points_against: (match.team1?.points_against || 0) + gameState.team2Games
+              points_for: (match.team1?.points_for || 0) + finalTeam1Score,
+              points_against: (match.team1?.points_against || 0) + finalTeam2Score
             })
             .eq('id', match.team1_id)
           
           await supabase
             .from('teams')
             .update({ 
-              points_for: (match.team2?.points_for || 0) + gameState.team2Games,
-              points_against: (match.team2?.points_against || 0) + gameState.team1Games
+              points_for: (match.team2?.points_for || 0) + finalTeam2Score,
+              points_against: (match.team2?.points_against || 0) + finalTeam1Score
             })
             .eq('id', match.team2_id)
         }
@@ -198,8 +209,8 @@ export default function PickleballScoreCalculator() {
               winner_id: winnerId,
               match_round: match.match_round || '',
               match_status: 'completed',
-              team1_score: gameState.team1Games,
-              team2_score: gameState.team2Games
+              team1_score: finalTeam1Score,
+              team2_score: finalTeam2Score
             }
             await handleEliminationAdvancement(completedMatch)
           }
