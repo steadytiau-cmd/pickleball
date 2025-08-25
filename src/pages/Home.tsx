@@ -206,12 +206,28 @@ export default function Home() {
   const renderCumulativeScoreboard = () => {
     // Calculate total scores and wins for each group
     const groupTotalScores = groups.map(group => {
-      const groupScores = cumulativeScores
-        .filter(score => score.group_id === group.id)
-      const totalScore = groupScores.reduce((total, score) => total + score.total_score, 0)
+      const groupTeams = teams.filter(team => team.group_id === group.id)
+      
+      // Calculate total score for this group (only group stage matches)
+      const totalScore = matches
+        .filter(match => 
+          match.match_status === 'completed' && 
+          match.tournament?.tournament_type === 'group_stage' &&
+          (groupTeams.some(team => team.id === match.team1_id) || 
+           groupTeams.some(team => team.id === match.team2_id))
+        )
+        .reduce((total, match) => {
+          let score = 0
+          if (groupTeams.some(team => team.id === match.team1_id)) {
+            score += match.team1_score || 0
+          }
+          if (groupTeams.some(team => team.id === match.team2_id)) {
+            score += match.team2_score || 0
+          }
+          return total + score
+        }, 0)
       
       // Calculate total wins for this group (only group stage matches)
-      const groupTeams = teams.filter(team => team.group_id === group.id)
       const totalWins = matches
         .filter(match => 
           match.match_status === 'completed' && 
@@ -224,7 +240,7 @@ export default function Home() {
         ...group,
         totalScore,
         totalWins,
-        hasTeams: groupScores.length > 0
+        hasTeams: groupTeams.length > 0
       }
     }).sort((a, b) => {
       // Sort by wins first, then by total score if wins are equal
