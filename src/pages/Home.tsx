@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { supabase, Group, Team, Match, Tournament, TeamCumulativeScore } from '@/lib/supabase'
-import { Users, Trophy, Calendar, Clock, Target, Calculator } from 'lucide-react'
+import { Users, Trophy, Calendar, Clock, Target, Calculator, Settings } from 'lucide-react'
 import TournamentBracket from '@/components/TournamentBracket'
 import PickleballScoreCalculator from '@/components/PickleballScoreCalculator'
+import { useNavigate } from 'react-router-dom'
 
 export default function Home() {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('scoreboard')
   const [groups, setGroups] = useState<Group[]>([])
   const [teams, setTeams] = useState<Team[]>([])  
@@ -647,6 +649,13 @@ export default function Home() {
             <div className="flex items-center space-x-3">
               <Trophy className="h-8 w-8 text-yellow-500" />
               <h1 className="text-3xl font-bold text-gray-900">匹克球挑战赛</h1>
+              <button
+                onClick={() => navigate('/admin/dashboard')}
+                className="ml-4 p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200 rounded-full hover:bg-gray-100"
+                title="管理员面板"
+              >
+                <Settings className="h-5 w-5" />
+              </button>
             </div>
             <div className="flex items-center space-x-2 text-sm text-gray-500">
               <Clock className="h-4 w-4" />
