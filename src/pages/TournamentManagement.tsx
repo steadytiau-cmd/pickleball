@@ -401,7 +401,6 @@ export default function TournamentManagement() {
             team2_id: team2.id,
             match_round: 'quarter_final',
             match_status: 'scheduled',
-            match_number: index + 1,
             team1_score: 0,
             team2_score: 0
           })
@@ -416,7 +415,6 @@ export default function TournamentManagement() {
         team2_id: null,
         match_round: 'semi_final',
         match_status: 'pending',
-        match_number: 1,
         team1_score: 0,
         team2_score: 0
       })
@@ -428,7 +426,6 @@ export default function TournamentManagement() {
         team2_id: null,
         match_round: 'semi_final',
         match_status: 'pending',
-        match_number: 2,
         team1_score: 0,
         team2_score: 0
       })
@@ -440,7 +437,6 @@ export default function TournamentManagement() {
         team2_id: null,
         match_round: 'final',
         match_status: 'pending',
-        match_number: 1,
         team1_score: 0,
         team2_score: 0
       })
