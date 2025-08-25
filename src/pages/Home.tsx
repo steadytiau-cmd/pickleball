@@ -210,12 +210,13 @@ export default function Home() {
         .filter(score => score.group_id === group.id)
       const totalScore = groupScores.reduce((total, score) => total + score.total_score, 0)
       
-      // Calculate total wins for this group
+      // Calculate total wins for this group (only group stage matches)
       const groupTeams = teams.filter(team => team.group_id === group.id)
       const totalWins = matches
         .filter(match => 
           match.match_status === 'completed' && 
           match.winner_id && 
+          match.tournament_type === 'group_stage' &&
           groupTeams.some(team => team.id === match.winner_id)
         ).length
       
