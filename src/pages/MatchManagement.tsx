@@ -14,6 +14,7 @@ import {
   CheckCircle,
   Clock
 } from 'lucide-react'
+import { handleEliminationAdvancement, isEightTeamEliminationTournament } from '../utils/eliminationUtils'
 
 interface MatchFormData {
   team1_id: number
@@ -234,6 +235,25 @@ export default function MatchManagement() {
             points_against: (selectedMatch.team2?.points_against || 0) + scoreData.team1_score
           })
           .eq('id', selectedMatch.team2_id)
+        
+        // 检查是否为8队淘汰赛，如果是则处理自动晋级
+        if (selectedMatch.tournament_id) {
+          const isEightTeam = await isEightTeamEliminationTournament(selectedMatch.tournament_id)
+          if (isEightTeam) {
+            const completedMatch = {
+              id: selectedMatch.id,
+              tournament_id: selectedMatch.tournament_id,
+              team1_id: selectedMatch.team1_id,
+              team2_id: selectedMatch.team2_id,
+              winner_id: winner_id,
+              match_round: selectedMatch.match_round || '',
+              match_status: 'completed',
+              team1_score: scoreData.team1_score,
+              team2_score: scoreData.team2_score
+            }
+            await handleEliminationAdvancement(completedMatch)
+          }
+        }
       }
 
       setShowScoreModal(false)
@@ -357,6 +377,25 @@ export default function MatchManagement() {
             points_against: (match.team2?.points_against || 0) + team1Score
           })
           .eq('id', match.team2_id)
+        
+        // 检查是否为8队淘汰赛，如果是则处理自动晋级
+        if (match.tournament_id) {
+          const isEightTeam = await isEightTeamEliminationTournament(match.tournament_id)
+          if (isEightTeam) {
+            const completedMatch = {
+              id: matchId,
+              tournament_id: match.tournament_id,
+              team1_id: match.team1_id,
+              team2_id: match.team2_id,
+              winner_id: winner_id,
+              match_round: match.match_round || '',
+              match_status: 'completed',
+              team1_score: team1Score,
+              team2_score: team2Score
+            }
+            await handleEliminationAdvancement(completedMatch)
+          }
+        }
       }
 
       fetchData()

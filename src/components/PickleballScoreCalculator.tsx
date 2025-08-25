@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { RotateCcw, Play, Pause, ArrowLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { handleEliminationAdvancement, isEightTeamEliminationTournament } from '../utils/eliminationUtils'
 
 interface GameState {
   team1Score: number
@@ -183,6 +184,25 @@ export default function PickleballScoreCalculator() {
               points_against: (match.team2?.points_against || 0) + gameState.team1Games
             })
             .eq('id', match.team2_id)
+        }
+        
+        // 检查是否为8队淘汰赛，如果是则处理自动晋级
+        if (match.tournament_id) {
+          const isEightTeam = await isEightTeamEliminationTournament(match.tournament_id)
+          if (isEightTeam) {
+            const completedMatch = {
+              id: matchIdNum,
+              tournament_id: match.tournament_id,
+              team1_id: match.team1_id,
+              team2_id: match.team2_id,
+              winner_id: winnerId,
+              match_round: match.match_round || '',
+              match_status: 'completed',
+              team1_score: gameState.team1Games,
+              team2_score: gameState.team2Games
+            }
+            await handleEliminationAdvancement(completedMatch)
+          }
         }
       }
     } catch (error) {

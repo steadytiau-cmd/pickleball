@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase, Tournament, Match, Team } from '@/lib/supabase'
+import EightTeamDraw from '@/components/EightTeamDraw'
 import { 
   Trophy, 
   Plus, 
@@ -14,7 +15,8 @@ import {
   Award,
   Target,
   Play,
-  CheckCircle
+  CheckCircle,
+  Crown
 } from 'lucide-react'
 
 interface TournamentFormData {
@@ -54,6 +56,8 @@ export default function TournamentManagement() {
     is_active: true
   })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [showEightTeamDraw, setShowEightTeamDraw] = useState(false)
+  const [selectedTournamentForDraw, setSelectedTournamentForDraw] = useState<Tournament | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -366,6 +370,97 @@ export default function TournamentManagement() {
     }
   }
 
+  const handleEightTeamDraw = (tournament: Tournament) => {
+    setSelectedTournamentForDraw(tournament)
+    setShowEightTeamDraw(true)
+  }
+
+  const handleDrawSave = async (drawPositions: { [position: number]: Team }) => {
+    if (!selectedTournamentForDraw) return
+
+    try {
+      // Create 8-team elimination matches based on draw positions
+      const matchesToCreate = []
+      
+      // Quarter-finals (4 matches)
+      const quarterFinalPairs = [
+        [1, 8], // Position 1 vs Position 8
+        [2, 7], // Position 2 vs Position 7
+        [3, 6], // Position 3 vs Position 6
+        [4, 5]  // Position 4 vs Position 5
+      ]
+
+      quarterFinalPairs.forEach((pair, index) => {
+        const team1 = drawPositions[pair[0]]
+        const team2 = drawPositions[pair[1]]
+        
+        if (team1 && team2) {
+          matchesToCreate.push({
+            tournament_id: selectedTournamentForDraw.id,
+            team1_id: team1.id,
+            team2_id: team2.id,
+            match_round: 'quarter_final',
+            match_status: 'scheduled',
+            match_number: index + 1,
+            team1_score: 0,
+            team2_score: 0
+          })
+        }
+      })
+
+      // Create placeholder matches for semi-finals and final
+      // Semi-final 1: Winner of QF1 vs Winner of QF2
+      matchesToCreate.push({
+        tournament_id: selectedTournamentForDraw.id,
+        team1_id: null,
+        team2_id: null,
+        match_round: 'semi_final',
+        match_status: 'pending',
+        match_number: 1,
+        team1_score: 0,
+        team2_score: 0
+      })
+
+      // Semi-final 2: Winner of QF3 vs Winner of QF4
+      matchesToCreate.push({
+        tournament_id: selectedTournamentForDraw.id,
+        team1_id: null,
+        team2_id: null,
+        match_round: 'semi_final',
+        match_status: 'pending',
+        match_number: 2,
+        team1_score: 0,
+        team2_score: 0
+      })
+
+      // Final: Winner of SF1 vs Winner of SF2
+      matchesToCreate.push({
+        tournament_id: selectedTournamentForDraw.id,
+        team1_id: null,
+        team2_id: null,
+        match_round: 'final',
+        match_status: 'pending',
+        match_number: 1,
+        team1_score: 0,
+        team2_score: 0
+      })
+
+      const { error } = await supabase
+        .from('matches')
+        .insert(matchesToCreate)
+
+      if (error) throw error
+
+      alert(`成功生成8队淘汰赛！包含4场四分之一决赛、2场半决赛和1场决赛`)
+      setShowEightTeamDraw(false)
+      setSelectedTournamentForDraw(null)
+      fetchData()
+    } catch (error) {
+      console.error('Error creating 8-team elimination:', error)
+      alert('生成8队淘汰赛失败，请重试')
+    }
+  }
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -585,13 +680,22 @@ export default function TournamentManagement() {
                           </button>
                         )}
                         {tournament.tournament_type === 'elimination' && (
-                          <button
-                            onClick={() => generateEliminationMatches(tournament)}
-                            className="w-full flex items-center justify-center px-3 py-2 text-sm font-medium bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
-                          >
-                            <Award className="h-4 w-4 mr-1" />
-                            生成淘汰赛
-                          </button>
+                          <>
+                            <button
+                              onClick={() => generateEliminationMatches(tournament)}
+                              className="w-full flex items-center justify-center px-3 py-2 text-sm font-medium bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                            >
+                              <Award className="h-4 w-4 mr-1" />
+                              生成淘汰赛
+                            </button>
+                            <button
+                              onClick={() => handleEightTeamDraw(tournament)}
+                              className="w-full flex items-center justify-center px-3 py-2 text-sm font-medium bg-gradient-to-r from-yellow-500 to-orange-600 text-white rounded-md hover:from-yellow-600 hover:to-orange-700 transition-all duration-200 shadow-lg"
+                            >
+                              <Crown className="h-4 w-4 mr-1" />
+                              8队淘汰赛
+                            </button>
+                          </>
                         )}
                       </div>
                     )}
@@ -610,6 +714,19 @@ export default function TournamentManagement() {
           </div>
         )}
       </div>
+
+      {/* Eight Team Draw Modal */}
+      {showEightTeamDraw && selectedTournamentForDraw && (
+        <EightTeamDraw
+          tournamentId={selectedTournamentForDraw.id}
+          teams={teams.filter(team => team.is_active)}
+          onSave={handleDrawSave}
+          onCancel={() => {
+            setShowEightTeamDraw(false)
+            setSelectedTournamentForDraw(null)
+          }}
+        />
+      )}
 
       {/* Add/Edit Tournament Modal */}
       {showAddForm && (

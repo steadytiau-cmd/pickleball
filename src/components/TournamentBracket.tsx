@@ -1,41 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase, Match, Team, Tournament } from '../lib/supabase';
+import EightTeamBracket from './EightTeamBracket';
 
-interface Team {
-  id: number;
-  name: string;
-  group_id: number;
-  team_type: 'mens' | 'womens' | 'mixed';
-  player1_name: string;
-  player2_name: string;
-  wins: number;
-  losses: number;
-}
 
-interface Match {
-  id: number;
-  tournament_id: number;
-  team1_id: number;
-  team2_id: number;
-  team1_score: number | null;
-  team2_score: number | null;
-  winner_id: number | null;
-  match_round: string;
-  match_status: 'scheduled' | 'in_progress' | 'completed';
-  court_number: number;
-  scheduled_time: string;
-  team1?: Team;
-  team2?: Team;
-}
-
-interface Tournament {
-  id: number;
-  name: string;
-  tournament_type: string;
-  team_type: string | null;
-  is_active: boolean;
-}
 
 interface Group {
   id: number;
@@ -50,6 +18,7 @@ const TournamentBracket: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedTournament, setSelectedTournament] = useState<number | string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'standard' | 'eight_team'>('standard');
 
   useEffect(() => {
     fetchData();
@@ -279,6 +248,23 @@ const TournamentBracket: React.FC = () => {
     if (match.match_status === 'scheduled') {
       navigate(`/scorer/${match.id}`);
     }
+  };
+
+  // Check if current tournament is an 8-team elimination tournament
+  const isEightTeamTournament = () => {
+    if (selectedTournament === 'elimination_all') {
+      const eliminationMatches = filteredMatches.filter(match => 
+        tournaments.some(t => t.id === match.tournament_id && t.tournament_type === 'elimination')
+      );
+      
+      // Check if it has the 8-team structure: 4 quarter-finals, 2 semi-finals, 1 final
+      const quarterFinals = eliminationMatches.filter(m => m.match_round === 'quarter_final');
+      const semiFinals = eliminationMatches.filter(m => m.match_round === 'semi_final');
+      const finals = eliminationMatches.filter(m => m.match_round === 'final');
+      
+      return quarterFinals.length === 4 && semiFinals.length === 2 && finals.length === 1;
+    }
+    return false;
   };
 
   const renderEliminationBracket = () => {
@@ -541,114 +527,114 @@ const TournamentBracket: React.FC = () => {
               
               <div className="grid gap-4">
                 {matches.map((match) => (
-          <div
-            key={match.id}
-            className={`border-2 rounded-lg p-6 transition-all hover:shadow-lg ${
-              getMatchStatusColor(match.match_status)
-            } ${
-              match.match_status === 'scheduled' ? 'cursor-pointer hover:bg-blue-50' : ''
-            }`}
-            onClick={() => handleMatchClick(match)}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-4">
-                <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                  {getRoundLabel(match.match_round)} · {match.team1 ? getTeamTypeLabel(match.team1.team_type) : match.team2 ? getTeamTypeLabel(match.team2.team_type) : ''}
-                </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  match.match_status === 'completed' ? 'bg-green-200 text-green-800' :
-                  match.match_status === 'in_progress' ? 'bg-yellow-200 text-yellow-800' :
-                  'bg-gray-200 text-gray-800'
-                }`}>
-                  {getMatchStatusText(match.match_status)}
-                </span>
-              </div>
-              <div className="text-sm text-gray-500">
-                {new Date(match.scheduled_time).toLocaleString('zh-CN')}
-              </div>
-            </div>
+                  <div
+                    key={match.id}
+                    className={`border-2 rounded-lg p-6 transition-all hover:shadow-lg ${
+                      getMatchStatusColor(match.match_status)
+                    } ${
+                      match.match_status === 'scheduled' ? 'cursor-pointer hover:bg-blue-50' : ''
+                    }`}
+                    onClick={() => handleMatchClick(match)}
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                          {getRoundLabel(match.match_round)} · {match.team1 ? getTeamTypeLabel(match.team1.team_type) : match.team2 ? getTeamTypeLabel(match.team2.team_type) : ''}
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          match.match_status === 'completed' ? 'bg-green-200 text-green-800' :
+                          match.match_status === 'in_progress' ? 'bg-yellow-200 text-yellow-800' :
+                          'bg-gray-200 text-gray-800'
+                        }`}>
+                          {getMatchStatusText(match.match_status)}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {new Date(match.scheduled_time).toLocaleString('zh-CN')}
+                      </div>
+                    </div>
 
-            <div className="flex items-center justify-between">
-              {/* Team 1 */}
-              <div className={`flex-1 text-center p-4 rounded-lg relative ${
-                match.winner_id === match.team1_id ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-amber-400 shadow-lg' : 'bg-white'
-              }`}>
-                <div className={`font-semibold text-lg text-gray-900 flex items-center justify-center ${
-                  match.winner_id === match.team1_id ? 'text-amber-800' : ''
-                }`}>
-                  {match.winner_id === match.team1_id && <span className="mr-1 text-yellow-500">👑</span>}
-                  {match.team1 ? match.team1.name : 'TBD'}
-                </div>
-                {match.team1 && (
-                  <>
-                    <div className="text-sm text-gray-600 mb-1">
-                      {getTeamTypeLabel(match.team1.team_type)}
+                    <div className="flex items-center justify-between">
+                      {/* Team 1 */}
+                      <div className={`flex-1 text-center p-4 rounded-lg relative ${
+                        match.winner_id === match.team1_id ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-amber-400 shadow-lg' : 'bg-white'
+                      }`}>
+                        <div className={`font-semibold text-lg text-gray-900 flex items-center justify-center ${
+                          match.winner_id === match.team1_id ? 'text-amber-800' : ''
+                        }`}>
+                          {match.winner_id === match.team1_id && <span className="mr-1 text-yellow-500">👑</span>}
+                          {match.team1 ? match.team1.name : 'TBD'}
+                        </div>
+                        {match.team1 && (
+                          <>
+                            <div className="text-sm text-gray-600 mb-1">
+                              {getTeamTypeLabel(match.team1.team_type)}
+                            </div>
+                            <div className="text-sm text-gray-700">
+                              {match.team1.player1_name} / {match.team1.player2_name}
+                            </div>
+                          </>
+                        )}
+                        {match.match_status === 'completed' && (
+                          <div className={`text-2xl font-bold mt-2 ${
+                            match.winner_id === match.team1_id ? 'text-amber-700' : 'text-gray-900'
+                          }`}>
+                            {match.team1_score}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* VS */}
+                      <div className="px-6">
+                        <div className="text-2xl font-bold text-gray-400">VS</div>
+                      </div>
+
+                      {/* Team 2 */}
+                      <div className={`flex-1 text-center p-4 rounded-lg relative ${
+                        match.winner_id === match.team2_id ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-amber-400 shadow-lg' : 'bg-white'
+                      }`}>
+                        <div className={`font-semibold text-lg text-gray-900 flex items-center justify-center ${
+                          match.winner_id === match.team2_id ? 'text-amber-800' : ''
+                        }`}>
+                          {match.winner_id === match.team2_id && <span className="mr-1 text-yellow-500">👑</span>}
+                          {match.team2 ? match.team2.name : 'TBD'}
+                        </div>
+                        {match.team2 && (
+                          <>
+                            <div className="text-sm text-gray-600 mb-1">
+                              {getTeamTypeLabel(match.team2.team_type)}
+                            </div>
+                            <div className="text-sm text-gray-700">
+                              {match.team2.player1_name} / {match.team2.player2_name}
+                            </div>
+                          </>
+                        )}
+                        {match.match_status === 'completed' && (
+                          <div className={`text-2xl font-bold mt-2 ${
+                            match.winner_id === match.team2_id ? 'text-amber-700' : 'text-gray-900'
+                          }`}>
+                            {match.team2_score}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-700">
-                      {match.team1.player1_name} / {match.team1.player2_name}
-                    </div>
-                  </>
-                )}
-                {match.match_status === 'completed' && (
-                  <div className={`text-2xl font-bold mt-2 ${
-                    match.winner_id === match.team1_id ? 'text-amber-700' : 'text-gray-900'
-                  }`}>
-                    {match.team1_score}
+
+                    {match.winner_id && (
+                      <div className="mt-4 text-center">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-gradient-to-r from-yellow-400 to-amber-500 text-white shadow-md">
+                          🏆 获胜者: {match.winner_id === match.team1_id 
+                            ? (match.team1 ? match.team1.name : 'Team 1')
+                            : (match.team2 ? match.team2.name : 'Team 2')
+                          }
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-
-              {/* VS */}
-              <div className="px-6">
-                <div className="text-2xl font-bold text-gray-400">VS</div>
-              </div>
-
-              {/* Team 2 */}
-              <div className={`flex-1 text-center p-4 rounded-lg relative ${
-                match.winner_id === match.team2_id ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-amber-400 shadow-lg' : 'bg-white'
-              }`}>
-                <div className={`font-semibold text-lg text-gray-900 flex items-center justify-center ${
-                  match.winner_id === match.team2_id ? 'text-amber-800' : ''
-                }`}>
-                  {match.winner_id === match.team2_id && <span className="mr-1 text-yellow-500">👑</span>}
-                  {match.team2 ? match.team2.name : 'TBD'}
-                </div>
-                {match.team2 && (
-                  <>
-                    <div className="text-sm text-gray-600 mb-1">
-                      {getTeamTypeLabel(match.team2.team_type)}
-                    </div>
-                    <div className="text-sm text-gray-700">
-                      {match.team2.player1_name} / {match.team2.player2_name}
-                    </div>
-                  </>
-                )}
-                {match.match_status === 'completed' && (
-                  <div className={`text-2xl font-bold mt-2 ${
-                    match.winner_id === match.team2_id ? 'text-amber-700' : 'text-gray-900'
-                  }`}>
-                    {match.team2_score}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {match.winner_id && (
-              <div className="mt-4 text-center">
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-gradient-to-r from-yellow-400 to-amber-500 text-white shadow-md">
-                  🏆 获胜者: {match.winner_id === match.team1_id 
-                    ? (match.team1 ? match.team1.name : 'Team 1')
-                    : (match.team2 ? match.team2.name : 'Team 2')
-                  }
-                </span>
-              </div>
-            )}
-          </div>
-        ))}
+                ))}
               </div>
             </div>
           ))}
-      </div>
+        </div>
     );
   };
 
@@ -708,37 +694,63 @@ const TournamentBracket: React.FC = () => {
           )}
         </div>
 
-        {selectedTournamentData && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">
-                {selectedTournamentData.name}
-              </h2>
-              <div className="flex items-center space-x-2">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  selectedTournamentData.tournament_type === 'group_stage' ? 'bg-blue-100 text-blue-800' :
-                  'bg-purple-100 text-purple-800'
-                }`}>
-                  {selectedTournamentData.tournament_type === 'group_stage' ? '小组赛' : '淘汰赛'}
-                </span>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  selectedTournamentData.is_active 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {selectedTournamentData.is_active ? '进行中' : '未开始'}
-                </span>
-                {selectedTournamentData.team_type && (
-                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                    {getTeamTypeLabel(selectedTournamentData.team_type)}
-                  </span>
-                )}
-              </div>
-            </div>
-            <p className="text-gray-600">{selectedTournamentData.tournament_type || '锦标赛'}</p>
+        {/* View Mode Toggle for 8-team tournaments */}
+        {selectedTournament === 'elimination_all' && isEightTeamTournament() && (
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setViewMode('standard')}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'standard'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              标准视图
+            </button>
+            <button
+              onClick={() => setViewMode('eight_team')}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'eight_team'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              8队专用视图
+            </button>
           </div>
         )}
       </div>
+
+      {selectedTournamentData && (
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-gray-900">
+              {selectedTournamentData.name}
+            </h2>
+            <div className="flex items-center space-x-2">
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                selectedTournamentData.tournament_type === 'group_stage' ? 'bg-blue-100 text-blue-800' :
+                'bg-purple-100 text-purple-800'
+              }`}>
+                {selectedTournamentData.tournament_type === 'group_stage' ? '小组赛' : '淘汰赛'}
+              </span>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                selectedTournamentData.is_active 
+                  ? 'bg-green-100 text-green-800' 
+                  : 'bg-gray-100 text-gray-800'
+              }`}>
+                {selectedTournamentData.is_active ? '进行中' : '未开始'}
+              </span>
+              {selectedTournamentData.team_type && (
+                <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                  {getTeamTypeLabel(selectedTournamentData.team_type)}
+                </span>
+              )}
+            </div>
+          </div>
+          <p className="text-gray-600">{selectedTournamentData.tournament_type || '锦标赛'}</p>
+        </div>
+      )}
 
       {/* Dynamic Content Based on Tournament Type */}
       <div className="grid gap-6">
@@ -751,7 +763,15 @@ const TournamentBracket: React.FC = () => {
             {selectedTournamentData?.tournament_type === 'elimination' ? (
               <>
                 <h3 className="text-xl font-bold text-gray-900 mb-6">淘汰赛对阵图</h3>
-                {renderEliminationBracket()}
+                {viewMode === 'eight_team' && isEightTeamTournament() ? (
+                  <EightTeamBracket 
+                    matches={filteredMatches}
+                    teams={teams}
+                    onMatchClick={handleMatchClick}
+                  />
+                ) : (
+                  renderEliminationBracket()
+                )}
               </>
             ) : (
               <>
@@ -762,8 +782,6 @@ const TournamentBracket: React.FC = () => {
           </div>
         )}
       </div>
-
-
     </div>
   );
 };
