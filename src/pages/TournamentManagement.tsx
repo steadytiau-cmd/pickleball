@@ -407,8 +407,29 @@ export default function TournamentManagement() {
         }
       })
 
-      // Note: Semi-finals and final matches will be created automatically
-      // when quarter-final matches are completed and winners are determined
+      // Semi-finals (2 matches) - teams will be determined after quarter-finals
+      for (let i = 0; i < 2; i++) {
+        matchesToCreate.push({
+          tournament_id: selectedTournamentForDraw.id,
+          team1_id: null,
+          team2_id: null,
+          match_round: 'semi_final',
+          match_status: 'scheduled',
+          team1_score: 0,
+          team2_score: 0
+        })
+      }
+
+      // Final (1 match) - teams will be determined after semi-finals
+      matchesToCreate.push({
+        tournament_id: selectedTournamentForDraw.id,
+        team1_id: null,
+        team2_id: null,
+        match_round: 'final',
+        match_status: 'scheduled',
+        team1_score: 0,
+        team2_score: 0
+      })
 
       const { error } = await supabase
         .from('matches')
