@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, Crown, Medal } from 'lucide-react';
+import { Trophy, Medal } from 'lucide-react';
 import { Match, Team } from '../lib/supabase';
 
 interface EightTeamBracketProps {
@@ -98,42 +98,7 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
     );
   };
 
-  const renderConnectorLine = (type: 'quarter-to-semi' | 'semi-to-final' | 'final-to-champion', position?: 'top' | 'bottom') => {
-    if (type === 'final-to-champion') {
-      return (
-        <div className="flex items-center justify-center">
-          <div className="w-16 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 rounded-full shadow-md"></div>
-        </div>
-      );
-    }
-    
-    if (type === 'semi-to-final') {
-      return (
-        <div className="flex flex-col items-center justify-center h-full">
-          <div className="w-1 bg-gradient-to-b from-blue-400 to-purple-400 rounded-full shadow-md" style={{ height: '60px' }}></div>
-          <div className="w-16 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 rounded-full shadow-md"></div>
-          <div className="w-1 bg-gradient-to-b from-purple-400 to-blue-400 rounded-full shadow-md" style={{ height: '60px' }}></div>
-        </div>
-      );
-    }
-    
-    // quarter-to-semi connections
-    if (position === 'top') {
-      return (
-        <div className="flex flex-col items-center justify-end h-full">
-          <div className="w-16 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 rounded-full shadow-md"></div>
-          <div className="w-1 bg-gradient-to-b from-purple-400 to-blue-400 rounded-full shadow-md" style={{ height: '40px' }}></div>
-        </div>
-      );
-    } else {
-      return (
-        <div className="flex flex-col items-center justify-start h-full">
-          <div className="w-1 bg-gradient-to-b from-blue-400 to-purple-400 rounded-full shadow-md" style={{ height: '40px' }}></div>
-          <div className="w-16 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 rounded-full shadow-md"></div>
-        </div>
-      );
-    }
-  };
+
 
   const getChampion = () => {
     if (finals.length > 0 && finals[0].match_status === 'completed') {
@@ -164,54 +129,67 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
         </div>
       </div>
 
-      <div className="grid grid-cols-5 gap-6 items-center">
-        {/* 四分之一决赛 - 左侧 */}
-        <div className="space-y-4">
+      {/* 新的简化布局 */}
+      <div className="grid grid-cols-7 gap-4 items-center max-w-7xl mx-auto">
+        {/* 四分之一决赛 */}
+        <div className="space-y-8">
           <div className="text-center text-sm font-medium text-gray-700 mb-4">四分之一决赛</div>
           {quarterFinals.map((match, index) => (
-            <div key={match.id} className="relative">
+            <div key={match.id}>
               {renderMatch(match)}
             </div>
           ))}
         </div>
 
-        {/* 连接线：四分之一决赛到半决赛 */}
-        <div className="flex flex-col justify-center space-y-8">
-          <div className="h-20 flex items-center">
-            {renderConnectorLine('quarter-to-semi', 'top')}
-          </div>
-          <div className="h-20 flex items-center">
-            {renderConnectorLine('quarter-to-semi', 'bottom')}
-          </div>
-          <div className="h-20 flex items-center">
-            {renderConnectorLine('quarter-to-semi', 'top')}
-          </div>
-          <div className="h-20 flex items-center">
-            {renderConnectorLine('quarter-to-semi', 'bottom')}
-          </div>
+        {/* 连接线1：四分之一决赛到半决赛 */}
+        <div className="flex flex-col justify-center items-center h-full">
+          <svg width="60" height="400" className="overflow-visible">
+            {/* 第1场四分之一决赛到第1场半决赛 */}
+            <path d="M 0 50 L 30 50 L 30 100 L 60 100" stroke="#3B82F6" strokeWidth="2" fill="none" />
+            {/* 第2场四分之一决赛到第1场半决赛 */}
+            <path d="M 0 150 L 30 150 L 30 100 L 60 100" stroke="#3B82F6" strokeWidth="2" fill="none" />
+            {/* 第3场四分之一决赛到第2场半决赛 */}
+            <path d="M 0 250 L 30 250 L 30 300 L 60 300" stroke="#3B82F6" strokeWidth="2" fill="none" />
+            {/* 第4场四分之一决赛到第2场半决赛 */}
+            <path d="M 0 350 L 30 350 L 30 300 L 60 300" stroke="#3B82F6" strokeWidth="2" fill="none" />
+          </svg>
         </div>
 
-        {/* 半决赛和决赛 */}
-        <div className="flex flex-col justify-center space-y-16">
-          <div className="space-y-4">
-            <div className="text-center text-sm font-medium text-gray-700 mb-4">半决赛</div>
-            {semiFinals.map((match) => renderMatch(match))}
-          </div>
-          
-          <div className="space-y-4">
-            <div className="text-center text-sm font-medium text-gray-700 mb-4">决赛</div>
-            {finals.map((match) => renderMatch(match))}
-          </div>
+        {/* 半决赛 */}
+        <div className="space-y-32">
+          <div className="text-center text-sm font-medium text-gray-700 mb-4">半决赛</div>
+          {semiFinals.map((match, index) => (
+            <div key={match.id}>
+              {renderMatch(match)}
+            </div>
+          ))}
         </div>
 
-        {/* 连接线：半决赛到决赛，决赛到冠军 */}
-        <div className="flex flex-col justify-center space-y-16">
-          <div className="h-32 flex items-center">
-            {renderConnectorLine('semi-to-final')}
-          </div>
-          <div className="h-20 flex items-center">
-            {renderConnectorLine('final-to-champion')}
-          </div>
+        {/* 连接线2：半决赛到决赛 */}
+        <div className="flex flex-col justify-center items-center h-full">
+          <svg width="60" height="400" className="overflow-visible">
+            {/* 第1场半决赛到决赛 */}
+            <path d="M 0 100 L 30 100 L 30 200 L 60 200" stroke="#3B82F6" strokeWidth="2" fill="none" />
+            {/* 第2场半决赛到决赛 */}
+            <path d="M 0 300 L 30 300 L 30 200 L 60 200" stroke="#3B82F6" strokeWidth="2" fill="none" />
+          </svg>
+        </div>
+
+        {/* 决赛 */}
+        <div className="flex flex-col justify-center">
+          <div className="text-center text-sm font-medium text-gray-700 mb-4">决赛</div>
+          {finals.map((match) => (
+            <div key={match.id}>
+              {renderMatch(match)}
+            </div>
+          ))}
+        </div>
+
+        {/* 连接线3：决赛到冠军 */}
+        <div className="flex flex-col justify-center items-center h-full">
+          <svg width="60" height="100" className="overflow-visible">
+            <path d="M 0 50 L 60 50" stroke="#3B82F6" strokeWidth="2" fill="none" />
+          </svg>
         </div>
 
         {/* 冠军奖杯 */}
