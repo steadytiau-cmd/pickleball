@@ -53,7 +53,7 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
               </span>
             )}
             {isWinner && matchStatus === 'completed' && (
-              <Crown className="h-4 w-4 text-yellow-500 animate-pulse" />
+              <Medal className="h-4 w-4 text-yellow-500 animate-pulse" />
             )}
           </div>
         </div>
