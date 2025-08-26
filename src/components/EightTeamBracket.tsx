@@ -98,22 +98,41 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
     );
   };
 
-  const renderConnectorLine = (fromIndex: number, toIndex: number, isHorizontal: boolean = false) => {
-    if (isHorizontal) {
+  const renderConnectorLine = (type: 'quarter-to-semi' | 'semi-to-final' | 'final-to-champion', position?: 'top' | 'bottom') => {
+    if (type === 'final-to-champion') {
       return (
         <div className="flex items-center justify-center">
-          <div className="w-12 h-1 bg-gradient-to-r from-blue-300 via-purple-300 to-blue-300 rounded-full shadow-sm"></div>
+          <div className="w-16 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 rounded-full shadow-md"></div>
         </div>
       );
     }
     
-    return (
-      <div className="flex flex-col items-center justify-center h-full">
-        <div className="w-1 bg-gradient-to-b from-blue-300 to-purple-300 rounded-full shadow-sm" style={{ height: '24px' }}></div>
-        <div className="w-12 h-1 bg-gradient-to-r from-blue-300 via-purple-300 to-blue-300 rounded-full shadow-sm"></div>
-        <div className="w-1 bg-gradient-to-b from-purple-300 to-blue-300 rounded-full shadow-sm" style={{ height: '24px' }}></div>
-      </div>
-    );
+    if (type === 'semi-to-final') {
+      return (
+        <div className="flex flex-col items-center justify-center h-full">
+          <div className="w-1 bg-gradient-to-b from-blue-400 to-purple-400 rounded-full shadow-md" style={{ height: '60px' }}></div>
+          <div className="w-16 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 rounded-full shadow-md"></div>
+          <div className="w-1 bg-gradient-to-b from-purple-400 to-blue-400 rounded-full shadow-md" style={{ height: '60px' }}></div>
+        </div>
+      );
+    }
+    
+    // quarter-to-semi connections
+    if (position === 'top') {
+      return (
+        <div className="flex flex-col items-center justify-end h-full">
+          <div className="w-16 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 rounded-full shadow-md"></div>
+          <div className="w-1 bg-gradient-to-b from-purple-400 to-blue-400 rounded-full shadow-md" style={{ height: '40px' }}></div>
+        </div>
+      );
+    } else {
+      return (
+        <div className="flex flex-col items-center justify-start h-full">
+          <div className="w-1 bg-gradient-to-b from-blue-400 to-purple-400 rounded-full shadow-md" style={{ height: '40px' }}></div>
+          <div className="w-16 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 rounded-full shadow-md"></div>
+        </div>
+      );
+    }
   };
 
   const getChampion = () => {
@@ -145,39 +164,54 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-4 items-center">
+      <div className="grid grid-cols-5 gap-6 items-center">
         {/* 四分之一决赛 - 左侧 */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div className="text-center text-sm font-medium text-gray-700 mb-4">四分之一决赛</div>
-          {quarterFinals.slice(0, 2).map((match) => renderMatch(match))}
+          {quarterFinals.map((match, index) => (
+            <div key={match.id} className="relative">
+              {renderMatch(match)}
+            </div>
+          ))}
         </div>
 
-        {/* 连接线 1 */}
-        <div className="flex flex-col justify-center space-y-12">
-          {renderConnectorLine(0, 0)}
-          {renderConnectorLine(1, 0)}
+        {/* 连接线：四分之一决赛到半决赛 */}
+        <div className="flex flex-col justify-center space-y-8">
+          <div className="h-20 flex items-center">
+            {renderConnectorLine('quarter-to-semi', 'top')}
+          </div>
+          <div className="h-20 flex items-center">
+            {renderConnectorLine('quarter-to-semi', 'bottom')}
+          </div>
+          <div className="h-20 flex items-center">
+            {renderConnectorLine('quarter-to-semi', 'top')}
+          </div>
+          <div className="h-20 flex items-center">
+            {renderConnectorLine('quarter-to-semi', 'bottom')}
+          </div>
         </div>
 
-        {/* 半决赛 */}
-        <div className="space-y-12">
-          <div className="text-center text-sm font-medium text-gray-700 mb-4">半决赛</div>
-          {semiFinals.map((match) => renderMatch(match))}
+        {/* 半决赛和决赛 */}
+        <div className="flex flex-col justify-center space-y-16">
+          <div className="space-y-4">
+            <div className="text-center text-sm font-medium text-gray-700 mb-4">半决赛</div>
+            {semiFinals.map((match) => renderMatch(match))}
+          </div>
+          
+          <div className="space-y-4">
+            <div className="text-center text-sm font-medium text-gray-700 mb-4">决赛</div>
+            {finals.map((match) => renderMatch(match))}
+          </div>
         </div>
 
-        {/* 连接线 2 */}
-        <div className="flex flex-col justify-center">
-          {renderConnectorLine(0, 0)}
-        </div>
-
-        {/* 决赛 */}
-        <div className="flex flex-col justify-center">
-          <div className="text-center text-sm font-medium text-gray-700 mb-4">决赛</div>
-          {finals.map((match) => renderMatch(match))}
-        </div>
-
-        {/* 连接线 3 */}
-        <div className="flex flex-col justify-center">
-          {renderConnectorLine(0, 0, true)}
+        {/* 连接线：半决赛到决赛，决赛到冠军 */}
+        <div className="flex flex-col justify-center space-y-16">
+          <div className="h-32 flex items-center">
+            {renderConnectorLine('semi-to-final')}
+          </div>
+          <div className="h-20 flex items-center">
+            {renderConnectorLine('final-to-champion')}
+          </div>
         </div>
 
         {/* 冠军奖杯 */}
@@ -211,25 +245,7 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-4 items-center mt-8">
-        {/* 四分之一决赛 - 右侧 */}
-        <div className="space-y-6">
-          {quarterFinals.slice(2, 4).map((match) => renderMatch(match))}
-        </div>
 
-        {/* 连接线 4 */}
-        <div className="flex flex-col justify-center space-y-12">
-          {renderConnectorLine(0, 0)}
-          {renderConnectorLine(1, 0)}
-        </div>
-
-        {/* 空白列 */}
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-      </div>
 
       {/* 比赛统计 */}
       <div className="mt-8 grid grid-cols-3 gap-4">

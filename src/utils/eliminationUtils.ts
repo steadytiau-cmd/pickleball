@@ -17,7 +17,16 @@ interface Match {
  * @param completedMatch 刚完成的比赛
  */
 export const handleEliminationAdvancement = async (completedMatch: Match) => {
+  console.log('🏆 开始处理淘汰赛自动晋级:', {
+    matchId: completedMatch.id,
+    tournamentId: completedMatch.tournament_id,
+    winnerId: completedMatch.winner_id,
+    matchRound: completedMatch.match_round,
+    matchStatus: completedMatch.match_status
+  });
+
   if (!completedMatch.winner_id || completedMatch.match_status !== 'completed') {
+    console.log('❌ 跳过晋级处理: 缺少获胜者ID或比赛未完成');
     return;
   }
 
@@ -30,14 +39,16 @@ export const handleEliminationAdvancement = async (completedMatch: Match) => {
       .order('match_round');
 
     if (fetchError) {
-      console.error('获取比赛数据失败:', fetchError);
+      console.error('❌ 获取比赛数据失败:', fetchError);
       return;
     }
+
+    console.log('📊 获取到比赛数据:', allMatches?.length, '场比赛');
 
     // 根据比赛轮次确定晋级逻辑
     await advanceWinnerToNextRound(completedMatch, allMatches || []);
   } catch (error) {
-    console.error('处理晋级逻辑失败:', error);
+    console.error('❌ 处理晋级逻辑失败:', error);
   }
 };
 
@@ -49,6 +60,11 @@ export const handleEliminationAdvancement = async (completedMatch: Match) => {
 const advanceWinnerToNextRound = async (completedMatch: Match, allMatches: Match[]) => {
   const { match_round, winner_id } = completedMatch;
   
+  console.log('🎯 处理晋级逻辑:', {
+    currentRound: match_round,
+    winnerId: winner_id
+  });
+  
   // 定义轮次晋级映射
   const roundProgression: { [key: string]: string } = {
     'quarter_final': 'semi_final',
@@ -57,22 +73,28 @@ const advanceWinnerToNextRound = async (completedMatch: Match, allMatches: Match
 
   const nextRound = roundProgression[match_round];
   if (!nextRound) {
-    // 如果是决赛，没有下一轮
+    console.log('🏁 已是决赛，无需晋级');
     return;
   }
+
+  console.log('➡️ 目标轮次:', nextRound);
 
   // 获取下一轮的比赛
   const nextRoundMatches = allMatches.filter(match => match.match_round === nextRound);
   
+  console.log('🔍 找到下一轮比赛:', nextRoundMatches.length, '场');
+  
   if (nextRoundMatches.length === 0) {
-    console.error(`未找到${nextRound}轮次的比赛`);
+    console.error(`❌ 未找到${nextRound}轮次的比赛`);
     return;
   }
 
   // 根据8队淘汰赛的标准晋级逻辑
   if (match_round === 'quarter_final') {
+    console.log('🔄 执行四分之一决赛晋级逻辑');
     await advanceFromQuarterFinal(completedMatch, nextRoundMatches, winner_id);
   } else if (match_round === 'semi_final') {
+    console.log('🔄 执行半决赛晋级逻辑');
     await advanceFromSemiFinal(completedMatch, nextRoundMatches, winner_id);
   }
 };
@@ -88,6 +110,12 @@ const advanceFromQuarterFinal = async (
   semiFinalMatches: Match[], 
   winnerId: number
 ) => {
+  console.log('🏀 四分之一决赛晋级处理开始:', {
+    matchId: completedMatch.id,
+    winnerId: winnerId,
+    semiFinalMatchesCount: semiFinalMatches.length
+  });
+  
   // 8队淘汰赛的四分之一决赛晋级逻辑：
   // QF1获胜者 vs QF2获胜者 -> SF1
   // QF3获胜者 vs QF4获胜者 -> SF2
@@ -101,25 +129,43 @@ const advanceFromQuarterFinal = async (
     .order('id');
 
   if (error || !quarterFinals) {
-    console.error('获取四分之一决赛数据失败:', error);
+    console.error('❌ 获取四分之一决赛数据失败:', error);
     return;
   }
 
+  console.log('📋 四分之一决赛列表:', quarterFinals.map(m => ({ id: m.id, winner_id: m.winner_id })));
+
   const matchIndex = quarterFinals.findIndex(match => match.id === completedMatch.id);
-  if (matchIndex === -1) return;
+  if (matchIndex === -1) {
+    console.error('❌ 未找到当前比赛在四分之一决赛中的位置');
+    return;
+  }
+
+  console.log('📍 当前比赛位置:', matchIndex);
 
   // 确定应该晋级到哪场半决赛
   const semiFinalIndex = Math.floor(matchIndex / 2); // 0或1
   const targetSemiFinal = semiFinalMatches[semiFinalIndex];
   
+  console.log('🎯 目标半决赛:', {
+    semiFinalIndex: semiFinalIndex,
+    targetSemiFinalId: targetSemiFinal?.id
+  });
+  
   if (!targetSemiFinal) {
-    console.error('未找到目标半决赛');
+    console.error('❌ 未找到目标半决赛');
     return;
   }
 
   // 确定应该填入team1还是team2位置
   const isFirstInPair = matchIndex % 2 === 0;
   const updateField = isFirstInPair ? 'team1_id' : 'team2_id';
+
+  console.log('🔄 更新字段:', {
+    isFirstInPair: isFirstInPair,
+    updateField: updateField,
+    winnerId: winnerId
+  });
 
   // 更新半决赛的队伍
   const { error: updateError } = await supabase
@@ -128,9 +174,9 @@ const advanceFromQuarterFinal = async (
     .eq('id', targetSemiFinal.id);
 
   if (updateError) {
-    console.error('更新半决赛队伍失败:', updateError);
+    console.error('❌ 更新半决赛队伍失败:', updateError);
   } else {
-    console.log(`队伍${winnerId}已晋级到半决赛`);
+    console.log(`✅ 队伍${winnerId}已晋级到半决赛 (比赛ID: ${targetSemiFinal.id})`);
   }
 };
 
@@ -145,13 +191,21 @@ const advanceFromSemiFinal = async (
   finalMatches: Match[], 
   winnerId: number
 ) => {
+  console.log('🏆 半决赛晋级处理开始:', {
+    matchId: completedMatch.id,
+    winnerId: winnerId,
+    finalMatchesCount: finalMatches.length
+  });
+  
   // 半决赛获胜者晋级到决赛
   const finalMatch = finalMatches[0]; // 应该只有一场决赛
   
   if (!finalMatch) {
-    console.error('未找到决赛');
+    console.error('❌ 未找到决赛');
     return;
   }
+
+  console.log('🎯 目标决赛ID:', finalMatch.id);
 
   // 获取当前半决赛的索引
   const { data: semiFinals, error } = await supabase
@@ -162,15 +216,27 @@ const advanceFromSemiFinal = async (
     .order('id');
 
   if (error || !semiFinals) {
-    console.error('获取半决赛数据失败:', error);
+    console.error('❌ 获取半决赛数据失败:', error);
     return;
   }
 
+  console.log('📋 半决赛列表:', semiFinals.map(m => ({ id: m.id, winner_id: m.winner_id })));
+
   const matchIndex = semiFinals.findIndex(match => match.id === completedMatch.id);
-  if (matchIndex === -1) return;
+  if (matchIndex === -1) {
+    console.error('❌ 未找到当前比赛在半决赛中的位置');
+    return;
+  }
+
+  console.log('📍 当前半决赛位置:', matchIndex);
 
   // 第一场半决赛的获胜者进入决赛的team1位置，第二场的获胜者进入team2位置
   const updateField = matchIndex === 0 ? 'team1_id' : 'team2_id';
+
+  console.log('🔄 更新决赛字段:', {
+    updateField: updateField,
+    winnerId: winnerId
+  });
 
   // 更新决赛的队伍
   const { error: updateError } = await supabase
@@ -179,9 +245,9 @@ const advanceFromSemiFinal = async (
     .eq('id', finalMatch.id);
 
   if (updateError) {
-    console.error('更新决赛队伍失败:', updateError);
+    console.error('❌ 更新决赛队伍失败:', updateError);
   } else {
-    console.log(`队伍${winnerId}已晋级到决赛`);
+    console.log(`✅ 队伍${winnerId}已晋级到决赛 (比赛ID: ${finalMatch.id})`);
   }
 };
 
