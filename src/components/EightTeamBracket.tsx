@@ -5,9 +5,10 @@ import { Match, Team } from '../types/tournament';
 interface EightTeamBracketProps {
   matches: Match[];
   teams: Team[];
+  onMatchClick?: (match: Match) => void;
 }
 
-const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams }) => {
+const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onMatchClick }) => {
   const getTeamById = (id: number) => teams.find(team => team.id === id);
   const getMatchById = (id: number) => matches.find(match => match.id === id);
 
@@ -217,8 +218,8 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams }) =
       <div className="mt-8 text-center text-sm text-slate-600 bg-white rounded-lg p-4 shadow-sm">
         <div className="flex justify-center space-x-8">
           <span>总比赛: {matches.length}</span>
-          <span>已完成: {matches.filter(m => m.status === 'completed').length}</span>
-          <span>进行中: {matches.filter(m => m.status === 'in_progress').length}</span>
+          <span>已完成: {matches.filter(m => m.match_status === 'completed').length}</span>
+          <span>进行中: {matches.filter(m => m.match_status === 'in_progress').length}</span>
         </div>
       </div>
     </div>
