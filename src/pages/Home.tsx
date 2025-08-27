@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase, Group, Team, Match, Tournament, TeamCumulativeScore } from '@/lib/supabase'
 import { Users, Trophy, Calendar, Clock, Target, Calculator, Settings } from 'lucide-react'
 import TournamentBracket from '@/components/TournamentBracket'
+import EightTeamBracket from '@/components/EightTeamBracket'
 import PickleballScoreCalculator from '@/components/PickleballScoreCalculator'
 import { useNavigate } from 'react-router-dom'
 
@@ -401,6 +402,31 @@ export default function Home() {
     const eliminationMatches = matches.filter(match => 
       match.tournament_id === selectedTournament?.id
     )
+    
+    // Check if this is an 8-team tournament (has quarter_final, semi_final, final rounds)
+    const hasQuarterFinals = eliminationMatches.some(match => match.match_round === 'quarter_final');
+    const hasSemiFinals = eliminationMatches.some(match => match.match_round === 'semi_final');
+    const hasFinals = eliminationMatches.some(match => match.match_round === 'final');
+    const isEightTeamTournament = hasQuarterFinals && hasSemiFinals && hasFinals;
+    
+    // If it's an 8-team tournament, use the EightTeamBracket component
+    if (isEightTeamTournament) {
+      const handleMatchClick = (match: Match) => {
+        // Handle match click - could navigate to match details or open modal
+        console.log('Match clicked:', match);
+      };
+      
+      return (
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">混双淘汰赛对阵图</h2>
+          <EightTeamBracket 
+            matches={eliminationMatches}
+            teams={teams}
+            onMatchClick={handleMatchClick}
+          />
+        </div>
+      );
+    }
     
     // Group matches by round for elimination tournaments
     const getMatchesByRound = () => {

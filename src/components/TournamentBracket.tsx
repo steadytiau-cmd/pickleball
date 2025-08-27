@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, Match, Team, Tournament } from '../lib/supabase';
-import EightTeamBracket from './EightTeamBracket';
 
 
 
@@ -18,7 +17,7 @@ const TournamentBracket: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedTournament, setSelectedTournament] = useState<number | string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'standard' | 'eight_team'>('standard');
+
 
   useEffect(() => {
     fetchData();
@@ -250,22 +249,7 @@ const TournamentBracket: React.FC = () => {
     }
   };
 
-  // Check if current tournament is an 8-team elimination tournament
-  const isEightTeamTournament = () => {
-    if (selectedTournament === 'elimination_all') {
-      const eliminationMatches = filteredMatches.filter(match => 
-        tournaments.some(t => t.id === match.tournament_id && t.tournament_type === 'elimination')
-      );
-      
-      // Check if it has the 8-team structure: 4 quarter-finals, 2 semi-finals, 1 final
-      const quarterFinals = eliminationMatches.filter(m => m.match_round === 'quarter_final');
-      const semiFinals = eliminationMatches.filter(m => m.match_round === 'semi_final');
-      const finals = eliminationMatches.filter(m => m.match_round === 'final');
-      
-      return quarterFinals.length === 4 && semiFinals.length === 2 && finals.length === 1;
-    }
-    return false;
-  };
+
 
   const renderEliminationBracket = () => {
     const matchesByRound = getMatchesByRound();
@@ -694,31 +678,7 @@ const TournamentBracket: React.FC = () => {
           )}
         </div>
 
-        {/* View Mode Toggle for 8-team tournaments */}
-        {selectedTournament === 'elimination_all' && isEightTeamTournament() && (
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setViewMode('standard')}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'standard'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              标准视图
-            </button>
-            <button
-              onClick={() => setViewMode('eight_team')}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'eight_team'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              8队专用视图
-            </button>
-          </div>
-        )}
+
       </div>
 
       {selectedTournamentData && (
@@ -763,15 +723,7 @@ const TournamentBracket: React.FC = () => {
             {selectedTournamentData?.tournament_type === 'elimination' ? (
               <>
                 <h3 className="text-xl font-bold text-gray-900 mb-6">淘汰赛对阵图</h3>
-                {viewMode === 'eight_team' && isEightTeamTournament() ? (
-                  <EightTeamBracket 
-                    matches={filteredMatches}
-                    teams={teams}
-                    onMatchClick={handleMatchClick}
-                  />
-                ) : (
-                  renderEliminationBracket()
-                )}
+                {renderEliminationBracket()}
               </>
             ) : (
               <>
