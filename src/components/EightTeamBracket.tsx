@@ -111,37 +111,11 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
   const champion = getChampion();
 
   return (
-    <div className="w-full overflow-x-auto bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8 rounded-2xl shadow-2xl border border-white/20">
-      <div className="min-w-[1600px] flex justify-between items-center relative">
-        {/* 四分之一决赛 */}
-        <div className="flex flex-col items-center space-y-16">
-          <div className="text-center font-bold text-xl text-indigo-800 mb-8 bg-gradient-to-r from-white to-indigo-50 px-6 py-3 rounded-xl shadow-lg border border-indigo-200">1/4决赛</div>
-          <div className="space-y-16">
-            {renderMatchPair(quarterFinals[0], 'quarter')}
-            {renderMatchPair(quarterFinals[1], 'quarter')}
-            {renderMatchPair(quarterFinals[2], 'quarter')}
-            {renderMatchPair(quarterFinals[3], 'quarter')}
-          </div>
-        </div>
-
-        {/* 半决赛 */}
-        <div className="flex flex-col items-center space-y-32">
-          <div className="text-center font-bold text-xl text-purple-800 mb-8 bg-gradient-to-r from-white to-purple-50 px-6 py-3 rounded-xl shadow-lg border border-purple-200">半决赛</div>
-          <div className="space-y-32">
-            {renderMatchPair(semiFinals[0], 'semi', areQuarterFinalsComplete())}
-            {renderMatchPair(semiFinals[1], 'semi', areQuarterFinalsComplete())}
-          </div>
-        </div>
-
-        {/* 决赛 */}
-        <div className="flex flex-col items-center">
-          <div className="text-center font-bold text-xl text-pink-800 mb-8 bg-gradient-to-r from-white to-pink-50 px-6 py-3 rounded-xl shadow-lg border border-pink-200">决赛</div>
-          {renderMatchPair(finalMatch, 'final', areSemiFinalsComplete())}
-        </div>
-
-        {/* 冠军 */}
-        <div className="flex flex-col items-center">
-          <div className="text-center font-bold text-xl text-yellow-800 mb-8 bg-gradient-to-r from-white to-yellow-50 px-6 py-3 rounded-xl shadow-lg border border-yellow-200">冠军</div>
+    <div className="w-full overflow-y-auto bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8 rounded-2xl shadow-2xl border border-white/20">
+      <div className="min-h-[1200px] flex flex-col justify-between items-center relative">
+        {/* 冠军 - 顶部 */}
+        <div className="flex flex-row items-center">
+          <div className="text-center font-bold text-xl text-yellow-800 mr-8 bg-gradient-to-r from-white to-yellow-50 px-6 py-3 rounded-xl shadow-lg border border-yellow-200">冠军</div>
           <div className="w-48 h-32 bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500 border-4 border-yellow-200 rounded-2xl flex flex-col items-center justify-center text-white shadow-2xl transform hover:scale-105 transition-all duration-300 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-yellow-200/30 to-transparent"></div>
             <Crown className="w-10 h-10 mb-2 text-yellow-100 relative z-10 drop-shadow-lg" />
@@ -162,55 +136,106 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
           </div>
         </div>
 
-        {/* SVG连接线系统 - 重新计算精确坐标 */}
+        {/* 决赛 */}
+        <div className="flex flex-row items-center space-x-32">
+          <div className="text-center font-bold text-xl text-pink-800 bg-gradient-to-r from-white to-pink-50 px-6 py-3 rounded-xl shadow-lg border border-pink-200">决赛</div>
+          {renderMatchPair(finalMatch, 'final', areSemiFinalsComplete())}
+        </div>
+
+        {/* 半决赛 */}
+        <div className="flex flex-row items-center space-x-16">
+          <div className="text-center font-bold text-xl text-purple-800 bg-gradient-to-r from-white to-purple-50 px-6 py-3 rounded-xl shadow-lg border border-purple-200">半决赛</div>
+          <div className="flex space-x-32">
+            {renderMatchPair(semiFinals[0], 'semi', areQuarterFinalsComplete())}
+            {renderMatchPair(semiFinals[1], 'semi', areQuarterFinalsComplete())}
+          </div>
+        </div>
+
+        {/* 四分之一决赛 - 底部 */}
+        <div className="flex flex-row items-center space-x-16">
+          <div className="text-center font-bold text-xl text-indigo-800 bg-gradient-to-r from-white to-indigo-50 px-6 py-3 rounded-xl shadow-lg border border-indigo-200">1/4决赛</div>
+          <div className="flex space-x-16">
+            {renderMatchPair(quarterFinals[0], 'quarter')}
+            {renderMatchPair(quarterFinals[1], 'quarter')}
+            {renderMatchPair(quarterFinals[2], 'quarter')}
+            {renderMatchPair(quarterFinals[3], 'quarter')}
+          </div>
+        </div>
+
+        {/* SVG连接线系统 - 垂直布局连接线 */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
           <defs>
-            <linearGradient id="lineGradient1" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#6366f1" />
-              <stop offset="100%" stopColor="#8b5cf6" />
+            <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.8" />
+              <stop offset="50%" stopColor="#A855F7" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#C084FC" stopOpacity="0.8" />
             </linearGradient>
-            <linearGradient id="lineGradient2" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#8b5cf6" />
-              <stop offset="100%" stopColor="#ec4899" />
-            </linearGradient>
-            <linearGradient id="lineGradient3" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#ec4899" />
-              <stop offset="100%" stopColor="#f59e0b" />
-            </linearGradient>
-            <marker id="arrowhead" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto">
-              <polygon points="0 0, 12 4, 0 8" fill="url(#lineGradient1)" />
-            </marker>
-            <filter id="glow">
-              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-              <feMerge> 
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
           </defs>
           
-          {/* 四分之一决赛到半决赛连接线 - 精确对齐格子中心 */}
-          {/* 第1场四分之一决赛 (上方) 到 第1场半决赛 */}
-          <path d="M 180 140 L 280 140 L 280 200 L 380 200" stroke="url(#lineGradient1)" strokeWidth="3" fill="none" markerEnd="url(#arrowhead)" filter="url(#glow)" />
+          {/* 四分之一决赛到半决赛的连接线 */}
+          {/* 第1场四分之一决赛到第1场半决赛 */}
+          <path
+            d="M 300 950 Q 300 900 300 850 Q 300 800 350 750"
+            stroke="url(#lineGradient)"
+            strokeWidth="3"
+            fill="none"
+            className="drop-shadow-sm"
+          />
           
-          {/* 第2场四分之一决赛 (上方) 到 第1场半决赛 */}
-          <path d="M 180 260 L 280 260 L 280 200 L 380 200" stroke="url(#lineGradient1)" strokeWidth="3" fill="none" />
+          {/* 第2场四分之一决赛到第1场半决赛 */}
+          <path
+            d="M 500 950 Q 500 900 450 850 Q 400 800 350 750"
+            stroke="url(#lineGradient)"
+            strokeWidth="3"
+            fill="none"
+            className="drop-shadow-sm"
+          />
           
-          {/* 第3场四分之一决赛 (下方) 到 第2场半决赛 */}
-          <path d="M 180 420 L 280 420 L 280 480 L 380 480" stroke="url(#lineGradient1)" strokeWidth="3" fill="none" markerEnd="url(#arrowhead)" filter="url(#glow)" />
+          {/* 第3场四分之一决赛到第2场半决赛 */}
+          <path
+            d="M 700 950 Q 700 900 750 850 Q 800 800 850 750"
+            stroke="url(#lineGradient)"
+            strokeWidth="3"
+            fill="none"
+            className="drop-shadow-sm"
+          />
           
-          {/* 第4场四分之一决赛 (下方) 到 第2场半决赛 */}
-          <path d="M 180 540 L 280 540 L 280 480 L 380 480" stroke="url(#lineGradient1)" strokeWidth="3" fill="none" />
+          {/* 第4场四分之一决赛到第2场半决赛 */}
+          <path
+            d="M 900 950 Q 900 900 900 850 Q 900 800 850 750"
+            stroke="url(#lineGradient)"
+            strokeWidth="3"
+            fill="none"
+            className="drop-shadow-sm"
+          />
           
-          {/* 半决赛到决赛连接线 */}
+          {/* 半决赛到决赛的连接线 */}
           {/* 第1场半决赛到决赛 */}
-          <path d="M 560 200 L 660 200 L 660 340 L 760 340" stroke="url(#lineGradient2)" strokeWidth="3" fill="none" markerEnd="url(#arrowhead)" filter="url(#glow)" />
+          <path
+            d="M 350 650 Q 350 600 500 550 Q 650 500 600 450"
+            stroke="url(#lineGradient)"
+            strokeWidth="3"
+            fill="none"
+            className="drop-shadow-sm"
+          />
           
           {/* 第2场半决赛到决赛 */}
-          <path d="M 560 480 L 660 480 L 660 340 L 760 340" stroke="url(#lineGradient2)" strokeWidth="3" fill="none" />
+          <path
+            d="M 850 650 Q 850 600 700 550 Q 550 500 600 450"
+            stroke="url(#lineGradient)"
+            strokeWidth="3"
+            fill="none"
+            className="drop-shadow-sm"
+          />
           
-          {/* 决赛到冠军连接线 */}
-          <path d="M 940 340 L 1060 340" stroke="url(#lineGradient3)" strokeWidth="4" fill="none" markerEnd="url(#arrowhead)" filter="url(#glow)" />
+          {/* 决赛到冠军的连接线 */}
+          <path
+            d="M 600 350 Q 600 300 600 250 Q 600 200 600 150"
+            stroke="url(#lineGradient)"
+            strokeWidth="3"
+            fill="none"
+            className="drop-shadow-sm"
+          />
         </svg>
       </div>
 
