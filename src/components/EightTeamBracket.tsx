@@ -50,37 +50,122 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
     );
   };
 
-  const renderMatchPair = (match: Match | undefined, round: string, showAdvancedTeams: boolean = true) => {
-    // 对于半决赛和决赛，只有当前一轮比赛完成时才显示队伍
-    if (!match || !showAdvancedTeams) {
-      return (
-        <div className="flex flex-col items-center space-y-6">
-          <div className="w-36 h-18 bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-300 rounded-xl flex items-center justify-center shadow-sm">
-            <span className="text-gray-500 text-sm font-medium">待定</span>
-          </div>
-          <div className="w-36 h-18 bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-300 rounded-xl flex items-center justify-center shadow-sm">
-            <span className="text-gray-500 text-sm font-medium">待定</span>
-          </div>
-        </div>
-      );
-    }
+  // 获取晋级到半决赛的队伍
+  const getSemiFinalTeams = () => {
+    const semiTeams: { [key: number]: { team1?: Team | null, team2?: Team | null } } = {};
+    
+    // 检查每场1/4决赛的获胜者
+    quarterFinals.forEach((match, index) => {
+      if (match.match_status === 'completed' && match.winner_id) {
+        const winner = getTeamById(match.winner_id);
+        if (winner) {
+          // 根据1/4决赛的顺序分配到对应的半决赛
+          const semiIndex = Math.floor(index / 2); // 0,1 -> 0; 2,3 -> 1
+          const position = index % 2; // 0,2 -> 0 (team1); 1,3 -> 1 (team2)
+          
+          if (!semiTeams[semiIndex]) semiTeams[semiIndex] = {};
+          semiTeams[semiIndex][position === 0 ? 'team1' : 'team2'] = winner;
+        }
+      }
+    });
+    
+    return semiTeams;
+  };
 
-    const team1 = getTeamById(match.team1_id);
-    const team2 = getTeamById(match.team2_id);
+  // 获取晋级到决赛的队伍
+  const getFinalTeams = () => {
+    const finalTeams: { team1?: Team | null, team2?: Team | null } = {};
+    
+    // 检查每场半决赛的获胜者
+    semiFinals.forEach((match, index) => {
+      if (match.match_status === 'completed' && match.winner_id) {
+        const winner = getTeamById(match.winner_id);
+        if (winner) {
+          finalTeams[index === 0 ? 'team1' : 'team2'] = winner;
+        }
+      }
+    });
+    
+    return finalTeams;
+  };
+
+  // 渲染比赛对阵
+  const renderMatchPair = (match: Match, team1: Team | null, team2: Team | null, round: string) => {
+    const getTeamDisplay = (team: Team | null) => {
+      if (!team) return { name: '待定', players: '等待晋级' };
+      return {
+        name: team.name,
+        players: `${team.player1_name} / ${team.player2_name}`
+      };
+    };
+
+    const team1Display = getTeamDisplay(team1);
+    const team2Display = getTeamDisplay(team2);
+    const isCompleted = match.match_status === 'completed';
     const winner = match.winner_id ? getTeamById(match.winner_id) : null;
+    
+    const getRoundTitle = (round: string) => {
+      switch(round) {
+        case 'quarterfinals': return '1/4决赛';
+        case 'semifinals': return '半决赛';
+        case 'finals': return '决赛';
+        default: return '';
+      }
+    };
 
     return (
-      <div className="flex flex-col items-center space-y-6 relative">
-        <div className="relative">
-          {renderTeamBox(team1, winner?.id === team1?.id, 'top')}
+      <div className="bg-white rounded-lg border-2 border-gray-200 p-3 min-w-[200px] shadow-sm">
+        <div className="text-center text-sm font-semibold text-gray-600 mb-2">
+          {getRoundTitle(round)}
         </div>
-        {match.team1_score !== null && match.team2_score !== null && (
-          <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-2 border-white rounded-lg px-3 py-2 text-sm font-bold z-20 shadow-lg">
-            {match.team1_score}-{match.team2_score}
+        
+        <div className="space-y-2">
+          <div className={`p-2 rounded transition-colors ${
+            winner?.id === team1?.id ? 'bg-green-100 border-green-300 border-2' : 
+            team1 ? 'bg-gray-50 border border-gray-200' : 'bg-gray-100 border border-dashed border-gray-300'
+          }`}>
+            <div className={`font-medium text-sm ${
+              team1 ? 'text-gray-900' : 'text-gray-500 italic'
+            }`}>{team1Display.name}</div>
+            <div className={`text-xs ${
+              team1 ? 'text-gray-600' : 'text-gray-400'
+            }`}>{team1Display.players}</div>
+            {isCompleted && team1 && (
+              <div className="text-right text-sm font-bold text-blue-600">
+                {match.team1_score || 0}
+              </div>
+            )}
           </div>
-        )}
-        <div className="relative">
-          {renderTeamBox(team2, winner?.id === team2?.id, 'bottom')}
+          
+          <div className="text-center text-xs text-gray-500 font-semibold py-1">
+            <span className="bg-gray-200 px-2 py-1 rounded">VS</span>
+          </div>
+          
+          <div className={`p-2 rounded transition-colors ${
+            winner?.id === team2?.id ? 'bg-green-100 border-green-300 border-2' : 
+            team2 ? 'bg-gray-50 border border-gray-200' : 'bg-gray-100 border border-dashed border-gray-300'
+          }`}>
+            <div className={`font-medium text-sm ${
+              team2 ? 'text-gray-900' : 'text-gray-500 italic'
+            }`}>{team2Display.name}</div>
+            <div className={`text-xs ${
+              team2 ? 'text-gray-600' : 'text-gray-400'
+            }`}>{team2Display.players}</div>
+            {isCompleted && team2 && (
+              <div className="text-right text-sm font-bold text-blue-600">
+                {match.team2_score || 0}
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="mt-3 text-center">
+          <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+            isCompleted ? 'bg-green-100 text-green-800' : 
+            (team1 && team2) ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600'
+          }`}>
+            {isCompleted ? '已完成' : (team1 && team2) ? '进行中' : '等待对阵'}
+          </span>
         </div>
       </div>
     );
@@ -109,6 +194,8 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
   };
 
   const champion = getChampion();
+  const semiTeams = getSemiFinalTeams();
+  const finalTeams = getFinalTeams();
 
   return (
     <div className="w-full overflow-x-auto bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8 rounded-2xl shadow-2xl border border-white/20">
@@ -117,10 +204,10 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
         <div className="flex flex-col items-center space-y-8">
           <div className="text-center font-bold text-xl text-indigo-800 bg-gradient-to-r from-white to-indigo-50 px-6 py-3 rounded-xl shadow-lg border border-indigo-200">1/4决赛</div>
           <div className="flex flex-col space-y-8">
-            {renderMatchPair(quarterFinals[0], 'quarter')}
-            {renderMatchPair(quarterFinals[1], 'quarter')}
-            {renderMatchPair(quarterFinals[2], 'quarter')}
-            {renderMatchPair(quarterFinals[3], 'quarter')}
+            {quarterFinals[0] && renderMatchPair(quarterFinals[0], getTeamById(quarterFinals[0].team1_id), getTeamById(quarterFinals[0].team2_id), 'quarterfinals')}
+            {quarterFinals[1] && renderMatchPair(quarterFinals[1], getTeamById(quarterFinals[1].team1_id), getTeamById(quarterFinals[1].team2_id), 'quarterfinals')}
+            {quarterFinals[2] && renderMatchPair(quarterFinals[2], getTeamById(quarterFinals[2].team1_id), getTeamById(quarterFinals[2].team2_id), 'quarterfinals')}
+            {quarterFinals[3] && renderMatchPair(quarterFinals[3], getTeamById(quarterFinals[3].team1_id), getTeamById(quarterFinals[3].team2_id), 'quarterfinals')}
           </div>
         </div>
 
@@ -128,15 +215,15 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
         <div className="flex flex-col items-center space-y-16">
           <div className="text-center font-bold text-xl text-purple-800 bg-gradient-to-r from-white to-purple-50 px-6 py-3 rounded-xl shadow-lg border border-purple-200">半决赛</div>
           <div className="flex flex-col space-y-32">
-            {renderMatchPair(semiFinals[0], 'semi', areQuarterFinalsComplete())}
-            {renderMatchPair(semiFinals[1], 'semi', areQuarterFinalsComplete())}
+            {semiFinals[0] && renderMatchPair(semiFinals[0], semiTeams[0]?.team1 || null, semiTeams[0]?.team2 || null, 'semifinals')}
+            {semiFinals[1] && renderMatchPair(semiFinals[1], semiTeams[1]?.team1 || null, semiTeams[1]?.team2 || null, 'semifinals')}
           </div>
         </div>
 
         {/* 决赛 - 中右 */}
         <div className="flex flex-col items-center space-y-16">
           <div className="text-center font-bold text-xl text-pink-800 bg-gradient-to-r from-white to-pink-50 px-6 py-3 rounded-xl shadow-lg border border-pink-200">决赛</div>
-          {renderMatchPair(finalMatch, 'final', areSemiFinalsComplete())}
+          {finalMatch && renderMatchPair(finalMatch, finalTeams.team1 || null, finalTeams.team2 || null, 'finals')}
         </div>
 
         {/* 冠军 - 右侧 */}
