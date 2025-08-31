@@ -111,11 +111,37 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
   const champion = getChampion();
 
   return (
-    <div className="w-full overflow-y-auto bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8 rounded-2xl shadow-2xl border border-white/20">
-      <div className="min-h-[1200px] flex flex-col justify-between items-center relative">
-        {/* 冠军 - 顶部 */}
-        <div className="flex flex-row items-center">
-          <div className="text-center font-bold text-xl text-yellow-800 mr-8 bg-gradient-to-r from-white to-yellow-50 px-6 py-3 rounded-xl shadow-lg border border-yellow-200">冠军</div>
+    <div className="w-full overflow-x-auto bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8 rounded-2xl shadow-2xl border border-white/20">
+      <div className="min-w-[1400px] min-h-[800px] flex flex-row justify-between items-center relative">
+        {/* 四分之一决赛 - 左侧 */}
+        <div className="flex flex-col items-center space-y-8">
+          <div className="text-center font-bold text-xl text-indigo-800 bg-gradient-to-r from-white to-indigo-50 px-6 py-3 rounded-xl shadow-lg border border-indigo-200">1/4决赛</div>
+          <div className="flex flex-col space-y-8">
+            {renderMatchPair(quarterFinals[0], 'quarter')}
+            {renderMatchPair(quarterFinals[1], 'quarter')}
+            {renderMatchPair(quarterFinals[2], 'quarter')}
+            {renderMatchPair(quarterFinals[3], 'quarter')}
+          </div>
+        </div>
+
+        {/* 半决赛 - 中左 */}
+        <div className="flex flex-col items-center space-y-16">
+          <div className="text-center font-bold text-xl text-purple-800 bg-gradient-to-r from-white to-purple-50 px-6 py-3 rounded-xl shadow-lg border border-purple-200">半决赛</div>
+          <div className="flex flex-col space-y-32">
+            {renderMatchPair(semiFinals[0], 'semi', areQuarterFinalsComplete())}
+            {renderMatchPair(semiFinals[1], 'semi', areQuarterFinalsComplete())}
+          </div>
+        </div>
+
+        {/* 决赛 - 中右 */}
+        <div className="flex flex-col items-center space-y-16">
+          <div className="text-center font-bold text-xl text-pink-800 bg-gradient-to-r from-white to-pink-50 px-6 py-3 rounded-xl shadow-lg border border-pink-200">决赛</div>
+          {renderMatchPair(finalMatch, 'final', areSemiFinalsComplete())}
+        </div>
+
+        {/* 冠军 - 右侧 */}
+        <div className="flex flex-col items-center">
+          <div className="text-center font-bold text-xl text-yellow-800 mb-8 bg-gradient-to-r from-white to-yellow-50 px-6 py-3 rounded-xl shadow-lg border border-yellow-200">冠军</div>
           <div className="w-48 h-32 bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500 border-4 border-yellow-200 rounded-2xl flex flex-col items-center justify-center text-white shadow-2xl transform hover:scale-105 transition-all duration-300 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-yellow-200/30 to-transparent"></div>
             <Crown className="w-10 h-10 mb-2 text-yellow-100 relative z-10 drop-shadow-lg" />
@@ -136,36 +162,10 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
           </div>
         </div>
 
-        {/* 决赛 */}
-        <div className="flex flex-row items-center space-x-32">
-          <div className="text-center font-bold text-xl text-pink-800 bg-gradient-to-r from-white to-pink-50 px-6 py-3 rounded-xl shadow-lg border border-pink-200">决赛</div>
-          {renderMatchPair(finalMatch, 'final', areSemiFinalsComplete())}
-        </div>
-
-        {/* 半决赛 */}
-        <div className="flex flex-row items-center space-x-16">
-          <div className="text-center font-bold text-xl text-purple-800 bg-gradient-to-r from-white to-purple-50 px-6 py-3 rounded-xl shadow-lg border border-purple-200">半决赛</div>
-          <div className="flex space-x-32">
-            {renderMatchPair(semiFinals[0], 'semi', areQuarterFinalsComplete())}
-            {renderMatchPair(semiFinals[1], 'semi', areQuarterFinalsComplete())}
-          </div>
-        </div>
-
-        {/* 四分之一决赛 - 底部 */}
-        <div className="flex flex-row items-center space-x-16">
-          <div className="text-center font-bold text-xl text-indigo-800 bg-gradient-to-r from-white to-indigo-50 px-6 py-3 rounded-xl shadow-lg border border-indigo-200">1/4决赛</div>
-          <div className="flex space-x-16">
-            {renderMatchPair(quarterFinals[0], 'quarter')}
-            {renderMatchPair(quarterFinals[1], 'quarter')}
-            {renderMatchPair(quarterFinals[2], 'quarter')}
-            {renderMatchPair(quarterFinals[3], 'quarter')}
-          </div>
-        </div>
-
-        {/* SVG连接线系统 - 垂直布局连接线 */}
+        {/* SVG连接线系统 - 水平布局连接线 */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
           <defs>
-            <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.8" />
               <stop offset="50%" stopColor="#A855F7" stopOpacity="0.9" />
               <stop offset="100%" stopColor="#C084FC" stopOpacity="0.8" />
@@ -173,36 +173,32 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
           </defs>
           
           {/* 四分之一决赛到半决赛的连接线 */}
-          {/* 第1场四分之一决赛到第1场半决赛 */}
+          {/* 第1场和第2场四分之一决赛到第1场半决赛 */}
           <path
-            d="M 300 950 Q 300 900 300 850 Q 300 800 350 750"
+            d="M 220 250 L 280 250 L 280 300 L 340 300"
+            stroke="url(#lineGradient)"
+            strokeWidth="3"
+            fill="none"
+            className="drop-shadow-sm"
+          />
+          <path
+            d="M 220 350 L 280 350 L 280 300 L 340 300"
             stroke="url(#lineGradient)"
             strokeWidth="3"
             fill="none"
             className="drop-shadow-sm"
           />
           
-          {/* 第2场四分之一决赛到第1场半决赛 */}
+          {/* 第3场和第4场四分之一决赛到第2场半决赛 */}
           <path
-            d="M 500 950 Q 500 900 450 850 Q 400 800 350 750"
+            d="M 220 450 L 280 450 L 280 500 L 340 500"
             stroke="url(#lineGradient)"
             strokeWidth="3"
             fill="none"
             className="drop-shadow-sm"
           />
-          
-          {/* 第3场四分之一决赛到第2场半决赛 */}
           <path
-            d="M 700 950 Q 700 900 750 850 Q 800 800 850 750"
-            stroke="url(#lineGradient)"
-            strokeWidth="3"
-            fill="none"
-            className="drop-shadow-sm"
-          />
-          
-          {/* 第4场四分之一决赛到第2场半决赛 */}
-          <path
-            d="M 900 950 Q 900 900 900 850 Q 900 800 850 750"
+            d="M 220 550 L 280 550 L 280 500 L 340 500"
             stroke="url(#lineGradient)"
             strokeWidth="3"
             fill="none"
@@ -210,18 +206,15 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
           />
           
           {/* 半决赛到决赛的连接线 */}
-          {/* 第1场半决赛到决赛 */}
           <path
-            d="M 350 650 Q 350 600 500 550 Q 650 500 600 450"
+            d="M 520 300 L 580 300 L 580 400 L 640 400"
             stroke="url(#lineGradient)"
             strokeWidth="3"
             fill="none"
             className="drop-shadow-sm"
           />
-          
-          {/* 第2场半决赛到决赛 */}
           <path
-            d="M 850 650 Q 850 600 700 550 Q 550 500 600 450"
+            d="M 520 500 L 580 500 L 580 400 L 640 400"
             stroke="url(#lineGradient)"
             strokeWidth="3"
             fill="none"
@@ -230,7 +223,7 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
           
           {/* 决赛到冠军的连接线 */}
           <path
-            d="M 600 350 Q 600 300 600 250 Q 600 200 600 150"
+            d="M 820 400 L 940 400"
             stroke="url(#lineGradient)"
             strokeWidth="3"
             fill="none"
@@ -239,14 +232,14 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
         </svg>
       </div>
 
-      {/* 比赛统计 */}
-      <div className="mt-8 text-center text-sm text-slate-600 bg-white rounded-lg p-4 shadow-sm">
-        <div className="flex justify-center space-x-8">
-          <span>总比赛: {matches.length}</span>
-          <span>已完成: {matches.filter(m => m.match_status === 'completed').length}</span>
-          <span>进行中: {matches.filter(m => m.match_status === 'in_progress').length}</span>
+        {/* 比赛统计 */}
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-center text-sm text-slate-600 bg-white rounded-lg p-4 shadow-sm">
+          <div className="flex justify-center space-x-8">
+            <span>总比赛: {matches.length}</span>
+            <span>已完成: {matches.filter(m => m.match_status === 'completed').length}</span>
+            <span>进行中: {matches.filter(m => m.match_status === 'in_progress').length}</span>
+          </div>
         </div>
-      </div>
     </div>
   );
 };
