@@ -1,5 +1,5 @@
 import React from 'react';
-import { Crown } from 'lucide-react';
+
 import { Match, Team } from '../types/tournament';
 
 interface EightTeamBracketProps {
@@ -21,33 +21,30 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
   const finals = getMatchesByRound('final');
   const finalMatch = finals[0];
 
-  const renderTeamBox = (team: Team | undefined, isWinner: boolean = false, position: 'top' | 'bottom' = 'top') => {
-    if (!team) {
-      return (
-        <div className="w-36 h-18 bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-300 rounded-xl flex items-center justify-center shadow-sm">
-          <span className="text-gray-500 text-sm font-medium">待定</span>
-        </div>
-      );
+  // 获取亚军和季军
+  const getRunnerUp = () => {
+    if (isFinalsComplete()) {
+      const finalMatch = finals[0];
+      const loserId = finalMatch.winner_id === finalMatch.team1_id ? finalMatch.team2_id : finalMatch.team1_id;
+      return getTeamById(loserId);
     }
+    return null;
+  };
 
-    return (
-      <div className={`w-36 h-18 border-2 rounded-xl flex flex-col items-center justify-center text-sm font-medium transition-all duration-300 transform hover:scale-105 ${
-        isWinner 
-          ? 'bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 border-blue-500 text-blue-900 shadow-lg ring-2 ring-blue-300 ring-opacity-50' 
-          : 'bg-gradient-to-br from-white to-gray-50 border-gray-400 text-gray-800 shadow-md hover:shadow-lg'
-      }`}>
-        <div className="text-center leading-tight px-2">
-          <div className="font-semibold">{team.player1_name}</div>
-          <div className="text-xs text-gray-500 font-light">/</div>
-          <div className="font-semibold">{team.player2_name}</div>
-        </div>
-        {isWinner && (
-          <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center">
-            <span className="text-white text-xs font-bold">✓</span>
-          </div>
-        )}
-      </div>
-    );
+  const getThirdPlace = () => {
+    // 假设有季军赛或者从半决赛失败者中确定
+    // 这里简化处理，可以根据实际业务逻辑调整
+    if (areSemiFinalsComplete()) {
+      const semiLosers = semiFinals.map(match => {
+        if (match.match_status === 'completed' && match.winner_id) {
+          const loserId = match.winner_id === match.team1_id ? match.team2_id : match.team1_id;
+          return getTeamById(loserId);
+        }
+        return null;
+      }).filter(Boolean);
+      return semiLosers[0]; // 简化处理，返回第一个半决赛失败者作为季军
+    }
+    return null;
   };
 
   // 获取晋级到半决赛的队伍
@@ -89,83 +86,121 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
     return finalTeams;
   };
 
-  // 渲染比赛对阵
+  // 渲染比赛对阵 - 采用TournamentBracket的卡片式设计
   const renderMatchPair = (match: Match, team1: Team | null, team2: Team | null, round: string) => {
-    const getTeamDisplay = (team: Team | null) => {
-      if (!team) return { name: '待定', players: '等待晋级' };
-      return {
-        name: team.name,
-        players: `${team.player1_name} / ${team.player2_name}`
-      };
-    };
-
-    const team1Display = getTeamDisplay(team1);
-    const team2Display = getTeamDisplay(team2);
     const isCompleted = match.match_status === 'completed';
     const winner = match.winner_id ? getTeamById(match.winner_id) : null;
     
     const getRoundTitle = (round: string) => {
       switch(round) {
-        case 'quarterfinals': return '1/4决赛';
+        case 'quarterfinals': return '四分之一决赛';
         case 'semifinals': return '半决赛';
         case 'finals': return '决赛';
         default: return '';
       }
     };
 
+    const getMatchStatusText = (status: string) => {
+      switch(status) {
+        case 'completed': return '已完成';
+        case 'in_progress': return '进行中';
+        case 'scheduled': return '等待开始';
+        default: return '待定';
+      }
+    };
+
     return (
-      <div className="bg-white rounded-lg border-2 border-gray-200 p-3 min-w-[200px] shadow-sm">
-        <div className="text-center text-sm font-semibold text-gray-600 mb-2">
-          {getRoundTitle(round)}
+      <div 
+        className={`w-56 sm:w-60 md:w-64 bg-white rounded-lg border-2 shadow-lg transition-all hover:shadow-xl ${
+          match.match_status === 'completed' ? 'border-green-500' :
+          match.match_status === 'in_progress' ? 'border-yellow-500' :
+          'border-gray-300'
+        }`}
+        onClick={() => onMatchClick?.(match)}
+      >
+        {/* Match Header */}
+        <div className="px-4 py-2 bg-gray-50 rounded-t-lg border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                match.match_status === 'completed' ? 'bg-green-100 text-green-800' :
+                match.match_status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
+                {getMatchStatusText(match.match_status)}
+              </span>
+              <div className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
+                {getRoundTitle(round)}
+              </div>
+            </div>
+          </div>
         </div>
         
-        <div className="space-y-2">
-          <div className={`p-2 rounded transition-colors ${
-            winner?.id === team1?.id ? 'bg-green-100 border-green-300 border-2' : 
-            team1 ? 'bg-gray-50 border border-gray-200' : 'bg-gray-100 border border-dashed border-gray-300'
+        {/* Teams */}
+        <div className="p-4">
+          {/* Team 1 */}
+          <div className={`p-3 rounded-lg mb-2 relative ${
+            match.winner_id === team1?.id ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-amber-400 shadow-lg' : 'bg-gray-50'
           }`}>
-            <div className={`font-medium text-sm ${
-              team1 ? 'text-gray-900' : 'text-gray-500 italic'
-            }`}>{team1Display.name}</div>
-            <div className={`text-xs ${
-              team1 ? 'text-gray-600' : 'text-gray-400'
-            }`}>{team1Display.players}</div>
-            {isCompleted && team1 && (
-              <div className="text-right text-sm font-bold text-blue-600">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className={`font-semibold text-sm flex items-center ${
+                  match.winner_id === team1?.id ? 'text-amber-800' : ''
+                }`}>
+                  {match.winner_id === team1?.id && <span className="mr-1 text-yellow-500">👑</span>}
+                  {team1?.name || '待定'}
+                </div>
+                {team1 && (
+                  <div className="text-xs text-gray-600 mt-1">
+                    {team1.player1_name} / {team1.player2_name}
+                  </div>
+                )}
+              </div>
+              <div className={`text-xl font-bold ml-2 ${
+                match.winner_id === team1?.id ? 'text-amber-700' : ''
+              }`}>
                 {match.team1_score || 0}
               </div>
-            )}
+            </div>
           </div>
           
-          <div className="text-center text-xs text-gray-500 font-semibold py-1">
-            <span className="bg-gray-200 px-2 py-1 rounded">VS</span>
-          </div>
+          {/* VS Divider */}
+          <div className="text-center text-xs text-gray-400 font-medium my-1">VS</div>
           
-          <div className={`p-2 rounded transition-colors ${
-            winner?.id === team2?.id ? 'bg-green-100 border-green-300 border-2' : 
-            team2 ? 'bg-gray-50 border border-gray-200' : 'bg-gray-100 border border-dashed border-gray-300'
+          {/* Team 2 */}
+          <div className={`p-3 rounded-lg relative ${
+            match.winner_id === team2?.id ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-amber-400 shadow-lg' : 'bg-gray-50'
           }`}>
-            <div className={`font-medium text-sm ${
-              team2 ? 'text-gray-900' : 'text-gray-500 italic'
-            }`}>{team2Display.name}</div>
-            <div className={`text-xs ${
-              team2 ? 'text-gray-600' : 'text-gray-400'
-            }`}>{team2Display.players}</div>
-            {isCompleted && team2 && (
-              <div className="text-right text-sm font-bold text-blue-600">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className={`font-semibold text-sm flex items-center ${
+                  match.winner_id === team2?.id ? 'text-amber-800' : ''
+                }`}>
+                  {match.winner_id === team2?.id && <span className="mr-1 text-yellow-500">👑</span>}
+                  {team2?.name || '待定'}
+                </div>
+                {team2 && (
+                  <div className="text-xs text-gray-600 mt-1">
+                    {team2.player1_name} / {team2.player2_name}
+                  </div>
+                )}
+              </div>
+              <div className={`text-xl font-bold ml-2 ${
+                match.winner_id === team2?.id ? 'text-amber-700' : ''
+              }`}>
                 {match.team2_score || 0}
               </div>
-            )}
+            </div>
           </div>
-        </div>
-        
-        <div className="mt-3 text-center">
-          <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-            isCompleted ? 'bg-green-100 text-green-800' : 
-            (team1 && team2) ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600'
-          }`}>
-            {isCompleted ? '已完成' : (team1 && team2) ? '进行中' : '等待对阵'}
-          </span>
+          
+          {/* Winner Badge */}
+          {match.winner_id && (
+            <div className="mt-3 text-center">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-gradient-to-r from-yellow-400 to-amber-500 text-white shadow-md">
+                🏆 获胜者: {match.winner_id === team1?.id ? team1?.name : team2?.name}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -194,6 +229,8 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
   };
 
   const champion = getChampion();
+  const runnerUp = getRunnerUp();
+  const thirdPlace = getThirdPlace();
   const semiTeams = getSemiFinalTeams();
   const finalTeams = getFinalTeams();
 
@@ -215,8 +252,8 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
         <div className="flex flex-col items-center space-y-16">
           <div className="text-center font-bold text-xl text-purple-800 bg-gradient-to-r from-white to-purple-50 px-6 py-3 rounded-xl shadow-lg border border-purple-200">半决赛</div>
           <div className="flex flex-col space-y-32">
-            {semiFinals[0] && renderMatchPair(semiFinals[0], semiTeams[0]?.team1 || null, semiTeams[0]?.team2 || null, 'semifinals')}
-            {semiFinals[1] && renderMatchPair(semiFinals[1], semiTeams[1]?.team1 || null, semiTeams[1]?.team2 || null, 'semifinals')}
+            {semiFinals[0] && renderMatchPair(semiFinals[0], getTeamById(semiFinals[0].team1_id), getTeamById(semiFinals[0].team2_id), 'semifinals')}
+            {semiFinals[1] && renderMatchPair(semiFinals[1], getTeamById(semiFinals[1].team1_id), getTeamById(semiFinals[1].team2_id), 'semifinals')}
           </div>
         </div>
 
@@ -226,97 +263,72 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
           {finalMatch && renderMatchPair(finalMatch, finalTeams.team1 || null, finalTeams.team2 || null, 'finals')}
         </div>
 
-        {/* 冠军 - 右侧 */}
-        <div className="flex flex-col items-center">
-          <div className="text-center font-bold text-xl text-yellow-800 mb-8 bg-gradient-to-r from-white to-yellow-50 px-6 py-3 rounded-xl shadow-lg border border-yellow-200">冠军</div>
-          <div className="w-48 h-32 bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500 border-4 border-yellow-200 rounded-2xl flex flex-col items-center justify-center text-white shadow-2xl transform hover:scale-105 transition-all duration-300 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-yellow-200/30 to-transparent"></div>
-            <Crown className="w-10 h-10 mb-2 text-yellow-100 relative z-10 drop-shadow-lg" />
+        {/* 排名区域 - 右侧 */}
+        <div className="flex flex-col items-center space-y-6">
+          <div className="text-center font-bold text-xl text-gray-800 mb-4 bg-gradient-to-r from-white to-gray-50 px-6 py-3 rounded-xl shadow-lg border border-gray-200">排名</div>
+          
+          {/* 冠军 */}
+          <div className="w-full">
             {champion ? (
-              <div className="text-center relative z-10">
-                <div className="font-bold text-lg mb-2 drop-shadow-md">🏆</div>
-                <div className="text-sm leading-tight font-semibold drop-shadow-sm">
-                  <div>{champion.player1_name}</div>
-                  <div className="text-yellow-100">/</div>
-                  <div>{champion.player2_name}</div>
+              <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white px-6 py-4 rounded-lg shadow-lg">
+                <div className="text-xl font-bold mb-2 flex items-center justify-center">
+                  🥇 <span className="ml-2">第一名</span>
+                </div>
+                <div className="text-lg font-semibold text-center">{champion.name}</div>
+                <div className="text-sm opacity-90 mt-1 text-center">
+                  {champion.player1_name} / {champion.player2_name}
                 </div>
               </div>
             ) : (
-              <div className="text-lg font-bold relative z-10 drop-shadow-md">待定</div>
+              <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg px-6 py-4 flex flex-col items-center justify-center text-gray-500">
+                <div className="text-lg font-medium">🥇 第一名</div>
+                <div className="text-sm mt-1">待定</div>
+              </div>
             )}
-            <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-red-400 to-red-600 rounded-full opacity-20"></div>
-            <div className="absolute -bottom-2 -left-2 w-6 h-6 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full opacity-20"></div>
+          </div>
+          
+          {/* 亚军 */}
+          <div className="w-full">
+            {runnerUp ? (
+              <div className="bg-gradient-to-r from-gray-400 to-gray-600 text-white px-6 py-3 rounded-lg shadow-lg">
+                <div className="text-lg font-bold mb-2 flex items-center justify-center">
+                  🥈 <span className="ml-2">第二名</span>
+                </div>
+                <div className="text-base font-semibold text-center">{runnerUp.name}</div>
+                <div className="text-xs opacity-90 mt-1 text-center">
+                  {runnerUp.player1_name} / {runnerUp.player2_name}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg px-6 py-3 flex flex-col items-center justify-center text-gray-500">
+                <div className="text-base font-medium">🥈 第二名</div>
+                <div className="text-xs mt-1">待定</div>
+              </div>
+            )}
+          </div>
+          
+          {/* 季军 */}
+          <div className="w-full">
+            {thirdPlace ? (
+              <div className="bg-gradient-to-r from-amber-600 to-orange-700 text-white px-6 py-3 rounded-lg shadow-lg">
+                <div className="text-lg font-bold mb-2 flex items-center justify-center">
+                  🥉 <span className="ml-2">第三名</span>
+                </div>
+                <div className="text-base font-semibold text-center">{thirdPlace.name}</div>
+                <div className="text-xs opacity-90 mt-1 text-center">
+                  {thirdPlace.player1_name} / {thirdPlace.player2_name}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg px-6 py-3 flex flex-col items-center justify-center text-gray-500">
+                <div className="text-base font-medium">🥉 第三名</div>
+                <div className="text-xs mt-1">待定</div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* SVG连接线系统 - 水平布局连接线 */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
-          <defs>
-            <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.8" />
-              <stop offset="50%" stopColor="#A855F7" stopOpacity="0.9" />
-              <stop offset="100%" stopColor="#C084FC" stopOpacity="0.8" />
-            </linearGradient>
-          </defs>
-          
-          {/* 四分之一决赛到半决赛的连接线 */}
-          {/* 第1场和第2场四分之一决赛到第1场半决赛 */}
-          <path
-            d="M 220 250 L 280 250 L 280 300 L 340 300"
-            stroke="url(#lineGradient)"
-            strokeWidth="3"
-            fill="none"
-            className="drop-shadow-sm"
-          />
-          <path
-            d="M 220 350 L 280 350 L 280 300 L 340 300"
-            stroke="url(#lineGradient)"
-            strokeWidth="3"
-            fill="none"
-            className="drop-shadow-sm"
-          />
-          
-          {/* 第3场和第4场四分之一决赛到第2场半决赛 */}
-          <path
-            d="M 220 450 L 280 450 L 280 500 L 340 500"
-            stroke="url(#lineGradient)"
-            strokeWidth="3"
-            fill="none"
-            className="drop-shadow-sm"
-          />
-          <path
-            d="M 220 550 L 280 550 L 280 500 L 340 500"
-            stroke="url(#lineGradient)"
-            strokeWidth="3"
-            fill="none"
-            className="drop-shadow-sm"
-          />
-          
-          {/* 半决赛到决赛的连接线 */}
-          <path
-            d="M 520 300 L 580 300 L 580 400 L 640 400"
-            stroke="url(#lineGradient)"
-            strokeWidth="3"
-            fill="none"
-            className="drop-shadow-sm"
-          />
-          <path
-            d="M 520 500 L 580 500 L 580 400 L 640 400"
-            stroke="url(#lineGradient)"
-            strokeWidth="3"
-            fill="none"
-            className="drop-shadow-sm"
-          />
-          
-          {/* 决赛到冠军的连接线 */}
-          <path
-            d="M 820 400 L 940 400"
-            stroke="url(#lineGradient)"
-            strokeWidth="3"
-            fill="none"
-            className="drop-shadow-sm"
-          />
-        </svg>
+        {/* SVG连接线系统已移除 - 界面更简洁 */}
       </div>
 
         {/* 比赛统计 */}
