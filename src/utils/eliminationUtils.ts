@@ -24,6 +24,9 @@ export const handleEliminationAdvancement = async (completedMatch: Match) => {
     matchRound: completedMatch.match_round,
     matchStatus: completedMatch.match_status
   });
+  
+  // 添加详细的调试信息
+  console.log('🔍 完整的比赛对象:', JSON.stringify(completedMatch, null, 2));
 
   if (!completedMatch.winner_id || completedMatch.match_status !== 'completed') {
     console.log('❌ 跳过晋级处理: 缺少获胜者ID或比赛未完成');
@@ -168,15 +171,25 @@ const advanceFromQuarterFinal = async (
   });
 
   // 更新半决赛的队伍
-  const { error: updateError } = await supabase
+  console.log('🔄 准备更新数据库:', {
+    targetSemiFinalId: targetSemiFinal.id,
+    updateField: updateField,
+    winnerId: winnerId,
+    currentTeam1Id: targetSemiFinal.team1_id,
+    currentTeam2Id: targetSemiFinal.team2_id
+  });
+  
+  const { data: updateResult, error: updateError } = await supabase
     .from('matches')
     .update({ [updateField]: winnerId })
-    .eq('id', targetSemiFinal.id);
+    .eq('id', targetSemiFinal.id)
+    .select();
 
   if (updateError) {
     console.error('❌ 更新半决赛队伍失败:', updateError);
   } else {
     console.log(`✅ 队伍${winnerId}已晋级到半决赛 (比赛ID: ${targetSemiFinal.id})`);
+    console.log('📊 更新后的数据:', updateResult);
   }
 };
 
