@@ -32,17 +32,35 @@ const EightTeamBracket: React.FC<EightTeamBracketProps> = ({ matches, teams, onM
   };
 
   const getThirdPlace = () => {
-    // 假设有季军赛或者从半决赛失败者中确定
-    // 这里简化处理，可以根据实际业务逻辑调整
+    // 根据半决赛失败者的比分确定第三名
     if (areSemiFinalsComplete()) {
-      const semiLosers = semiFinals.map(match => {
+      const semiLosersWithScores = semiFinals.map(match => {
         if (match.match_status === 'completed' && match.winner_id) {
           const loserId = match.winner_id === match.team1_id ? match.team2_id : match.team1_id;
-          return getTeamById(loserId);
+          const loserScore = match.winner_id === match.team1_id ? match.team2_score : match.team1_score;
+          const loserTeam = getTeamById(loserId);
+          return {
+            team: loserTeam,
+            score: loserScore || 0
+          };
         }
         return null;
       }).filter(Boolean);
-      return semiLosers[0]; // 简化处理，返回第一个半决赛失败者作为季军
+      
+      if (semiLosersWithScores.length === 2) {
+        // 比较两个失败者的比分，选择比分更高的作为第三名
+        const [loser1, loser2] = semiLosersWithScores;
+        if (loser1.score > loser2.score) {
+          return loser1.team;
+        } else if (loser2.score > loser1.score) {
+          return loser2.team;
+        } else {
+          // 比分相同时，按原逻辑返回第一个
+          return loser1.team;
+        }
+      } else if (semiLosersWithScores.length === 1) {
+        return semiLosersWithScores[0].team;
+      }
     }
     return null;
   };
