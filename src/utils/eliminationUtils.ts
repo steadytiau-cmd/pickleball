@@ -82,10 +82,13 @@ const advanceWinnerToNextRound = async (completedMatch: Match, allMatches: Match
 
   console.log('➡️ 目标轮次:', nextRound);
 
-  // 获取下一轮的比赛
-  const nextRoundMatches = allMatches.filter(match => match.match_round === nextRound);
+  // 获取下一轮的比赛并按ID排序
+  const nextRoundMatches = allMatches
+    .filter(match => match.match_round === nextRound)
+    .sort((a, b) => a.id - b.id);
   
   console.log('🔍 找到下一轮比赛:', nextRoundMatches.length, '场');
+  console.log('📋 下一轮比赛ID列表:', nextRoundMatches.map(m => m.id));
   
   if (nextRoundMatches.length === 0) {
     console.error(`❌ 未找到${nextRound}轮次的比赛`);
@@ -118,6 +121,13 @@ const advanceFromQuarterFinal = async (
     winnerId: winnerId,
     semiFinalMatchesCount: semiFinalMatches.length
   });
+  
+  console.log('📋 半决赛比赛详情:', semiFinalMatches.map(m => ({
+    id: m.id,
+    team1_id: m.team1_id,
+    team2_id: m.team2_id,
+    match_round: m.match_round
+  })));
   
   // 8队淘汰赛的四分之一决赛晋级逻辑：
   // QF1获胜者 vs QF2获胜者 -> SF1
@@ -210,8 +220,19 @@ const advanceFromSemiFinal = async (
     finalMatchesCount: finalMatches.length
   });
   
+  console.log('📋 决赛比赛详情:', finalMatches.map(m => ({
+    id: m.id,
+    team1_id: m.team1_id,
+    team2_id: m.team2_id,
+    match_round: m.match_round
+  })));
+  
+  // 确保决赛比赛按ID排序
+  const sortedFinalMatches = [...finalMatches].sort((a, b) => a.id - b.id);
+  console.log('🔄 排序后的决赛ID列表:', sortedFinalMatches.map(m => m.id));
+  
   // 半决赛获胜者晋级到决赛
-  const finalMatch = finalMatches[0]; // 应该只有一场决赛
+  const finalMatch = sortedFinalMatches[0]; // 应该只有一场决赛
   
   if (!finalMatch) {
     console.error('❌ 未找到决赛');
@@ -219,6 +240,10 @@ const advanceFromSemiFinal = async (
   }
 
   console.log('🎯 目标决赛ID:', finalMatch.id);
+  console.log('🎯 决赛当前状态:', {
+    team1_id: finalMatch.team1_id,
+    team2_id: finalMatch.team2_id
+  });
 
   // 获取当前半决赛的索引
   const { data: semiFinals, error } = await supabase
@@ -252,15 +277,25 @@ const advanceFromSemiFinal = async (
   });
 
   // 更新决赛的队伍
-  const { error: updateError } = await supabase
+  console.log('🔄 准备更新决赛数据库:', {
+    finalMatchId: finalMatch.id,
+    updateField: updateField,
+    winnerId: winnerId,
+    currentTeam1Id: finalMatch.team1_id,
+    currentTeam2Id: finalMatch.team2_id
+  });
+  
+  const { data: updateResult, error: updateError } = await supabase
     .from('matches')
     .update({ [updateField]: winnerId })
-    .eq('id', finalMatch.id);
+    .eq('id', finalMatch.id)
+    .select();
 
   if (updateError) {
     console.error('❌ 更新决赛队伍失败:', updateError);
   } else {
     console.log(`✅ 队伍${winnerId}已晋级到决赛 (比赛ID: ${finalMatch.id})`);
+    console.log('📊 更新后的决赛数据:', updateResult);
   }
 };
 
