@@ -294,7 +294,6 @@ export default function PickleballScoreCalculator() {
             newState.team1Score = 0;
             newState.team2Score = 0;
             newState.servingTeam = 1;
-            newState.serverNumber = 1;
           }
         }
       }
