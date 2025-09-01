@@ -10,7 +10,6 @@ interface GameState {
   team1Games: number
   team2Games: number
   servingTeam: 1 | 2  // 当前发球队伍
-  serverNumber: 1 | 2  // 发球队伍中的第几个发球员（1或2）
   isGameActive: boolean
   gameHistory: Array<{
     team1Score: number
@@ -65,7 +64,6 @@ export default function PickleballScoreCalculator() {
     team1Games: 0,
     team2Games: 0,
     servingTeam: 1,
-    serverNumber: 1,
     isGameActive: false,
     gameHistory: []
   })
@@ -238,14 +236,14 @@ export default function PickleballScoreCalculator() {
     }
   }, [gameState.team1Games, gameState.team2Games, match, matchId, team1Name, team2Name])
 
-  // 处理得分 - 只有发球方得分才有效
-  const handlePoint = () => {
+  // 处理队伍1得分 - 羽毛球rally规则
+  const handleTeam1Point = () => {
     if (!gameState.isGameActive) return
 
     setGameState(prev => {
-      // 匹克球规则：只有发球方可以得分
-      const newTeam1Score = prev.servingTeam === 1 ? prev.team1Score + 1 : prev.team1Score;
-      const newTeam2Score = prev.servingTeam === 2 ? prev.team2Score + 1 : prev.team2Score;
+      // 羽毛球规则：任何一方都可以得分，得分方获得发球权
+      const newTeam1Score = prev.team1Score + 1;
+      const newTeam2Score = prev.team2Score;
       
       // 检查是否有队伍获胜
       const isWinning = (score: number, opponentScore: number) => {
@@ -300,55 +298,83 @@ export default function PickleballScoreCalculator() {
           }
         }
       }
-      // 发球方得分后继续发球，不需要换发球权
+      // 得分方获得发球权
+      newState.servingTeam = 1;
 
       return newState
     })
   }
 
-  // 处理换发球权 - Side Out
-  const handleSideOut = () => {
+  // 处理队伍2得分 - 羽毛球rally规则
+  const handleTeam2Point = () => {
     if (!gameState.isGameActive) return
 
     setGameState(prev => {
-      // 匹克球发球权轮换规则：
-      // 1. 比赛开始时，第一个发球方（队伍1）只有1次发球机会（特殊规则）
-      // 2. 第一次Side Out后，发球权直接转给队伍2的第1发球员
-      // 3. 之后所有情况：第1发球员失误后，轮到第2发球员
-      // 4. 第2发球员失误后，发球权转给对方队伍的第1发球员
+      // 羽毛球规则：任何一方都可以得分，得分方获得发球权
+      const newTeam1Score = prev.team1Score;
+      const newTeam2Score = prev.team2Score + 1;
       
-      // 判断是否是比赛的真正开始（第一次发球）
-      // 只有在0-0-1的状态下才是真正的第一次发球
-      const isVeryFirstServe = prev.team1Score === 0 && prev.team2Score === 0 && 
-                               prev.servingTeam === 1 && prev.serverNumber === 1;
+      // 检查是否有队伍获胜
+      const isWinning = (score: number, opponentScore: number) => {
+        return score >= winningScore && score - opponentScore >= 2;
+      };
       
-      if (isVeryFirstServe) {
-        // 比赛开始时的特殊规则：第一个发球方只有1次发球机会
-        // 第一次Side Out后，发球权直接转给队伍2的第1发球员
-        return {
-          ...prev,
-          servingTeam: 2,
-          serverNumber: 1
-        };
+      const team1Wins = isWinning(newTeam1Score, newTeam2Score);
+      const team2Wins = isWinning(newTeam2Score, newTeam1Score);
+      
+      let newState = {
+        ...prev,
+        team1Score: newTeam1Score,
+        team2Score: newTeam2Score
+      };
+      
+      // 处理游戏结束逻辑
+      if (team1Wins || team2Wins) {
+        if (matchFormat === 'single') {
+          newState = {
+            ...newState,
+            isGameActive: false,
+            team1Games: team1Wins ? 1 : 0,
+            team2Games: team2Wins ? 1 : 0
+          };
+        } else if (matchFormat === 'best-of-3') {
+          const newTeam1Games = team1Wins ? prev.team1Games + 1 : prev.team1Games;
+          const newTeam2Games = team2Wins ? prev.team2Games + 1 : prev.team2Games;
+          
+          newState = {
+            ...newState,
+            team1Games: newTeam1Games,
+            team2Games: newTeam2Games
+          };
+          
+          // 保存局数历史
+          newState.gameHistory.push({
+            team1Score: newState.team1Score,
+            team2Score: newState.team2Score,
+            team1Games: newState.team1Games,
+            team2Games: newState.team2Games
+          });
+          
+          // 检查是否有队伍赢得整场比赛
+          if (newTeam1Games >= 2 || newTeam2Games >= 2) {
+            newState.isGameActive = false;
+          } else {
+            // 重置下一局
+            newState.team1Score = 0;
+            newState.team2Score = 0;
+            newState.servingTeam = 1;
+          }
+        }
       }
       
-      // 正常的发球权轮换逻辑
-      if (prev.serverNumber === 1) {
-        // 从第1发球员切换到第2发球员
-        return {
-          ...prev,
-          serverNumber: 2
-        };
-      } else {
-        // 从第2发球员切换到对方队伍的第1发球员
-        return {
-          ...prev,
-          servingTeam: prev.servingTeam === 1 ? 2 : 1,
-          serverNumber: 1
-        };
-      }
+      // 得分方获得发球权
+      newState.servingTeam = 2;
+
+      return newState
     })
   }
+
+
 
   const resetGame = () => {
     setGameState({
@@ -357,7 +383,6 @@ export default function PickleballScoreCalculator() {
       team1Games: 0,
       team2Games: 0,
       servingTeam: initialServingTeam,
-      serverNumber: 1,
       isGameActive: false,
       gameHistory: []
     })
@@ -373,8 +398,7 @@ export default function PickleballScoreCalculator() {
     // 同时更新当前游戏状态中的发球方
     setGameState(prev => ({
       ...prev,
-      servingTeam: newServingTeam,
-      serverNumber: 1
+      servingTeam: newServingTeam
     }))
   }
 
@@ -423,7 +447,7 @@ export default function PickleballScoreCalculator() {
               返回
             </button>
             <h2 className="text-2xl font-bold text-white">
-              {match ? `${match.team1?.name || 'TBD'} vs ${match.team2?.name || 'TBD'}` : '匹克球计分器'}
+              {match ? `${match.team1?.name || 'TBD'} vs ${match.team2?.name || 'TBD'}` : '羽毛球计分器'}
             </h2>
             <div className="w-16"></div> {/* 占位符保持居中 */}
           </div>
@@ -483,9 +507,9 @@ export default function PickleballScoreCalculator() {
                 }`}
               >
                 {gameState.isGameActive ? (
-                  <><Pause className="h-4 w-4 mr-2" />暂停</>
+                  <><Pause className="h-4 w-4 mr-2" />暂停比赛</>
                 ) : (
-                  <><Play className="h-4 w-4 mr-2" />开始</>
+                  <><Play className="h-4 w-4 mr-2" />开始比赛</>
                 )}
               </button>
             </div>
@@ -532,16 +556,13 @@ export default function PickleballScoreCalculator() {
 
         {/* Scoreboard */}
         <div className="p-6">
-          {/* 匹克球分数显示 x-x-x 格式 */}
+          {/* 羽毛球分数显示 */}
           <div className="text-center mb-8">
             <div className="text-8xl font-bold text-gray-900 mb-4">
-              {gameState.team1Score} - {gameState.team2Score} - {gameState.serverNumber}
+              {gameState.team1Score} - {gameState.team2Score}
             </div>
             <div className="text-lg text-gray-600 mb-2">
               {gameState.servingTeam === 1 ? team1Name : team2Name} 发球
-            </div>
-            <div className="text-sm text-gray-500">
-              第{gameState.serverNumber}发球员
             </div>
           </div>
 
@@ -584,21 +605,21 @@ export default function PickleballScoreCalculator() {
             </div>
           </div>
 
-          {/* 匹克球操作按钮 */}
-          <div className="flex justify-center space-x-4 mb-8">
+          {/* 得分按钮 */}
+          <div className="flex justify-center space-x-8 mb-6">
             <button
-              onClick={handleSideOut}
+              onClick={handleTeam1Point}
               disabled={!gameState.isGameActive}
-              className="px-8 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-lg"
+              className="px-8 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed font-semibold text-lg"
             >
-              Side Out
+              {team1Name} 得分
             </button>
             <button
-              onClick={handlePoint}
+              onClick={handleTeam2Point}
               disabled={!gameState.isGameActive}
-              className="px-8 py-4 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-lg"
+              className="px-8 py-4 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed font-semibold text-lg"
             >
-              Point
+              {team2Name} 得分
             </button>
           </div>
 
